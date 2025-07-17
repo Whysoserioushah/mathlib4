@@ -22,7 +22,7 @@ partial def parse (d : ℤ) (z : Q(Zsqrtd $d)) :
   | ~q($z1 - $z2) => parse d q($z1 + -$z2)
   | ~q($z1 * $z2) =>
     return ⟨q($z1.1 * $z2.1 + $d * $z1.2 * $z2.2), q($z1.1 * $z2.2 + $z1.2 * $z2.1), q(rfl)⟩
-  | ~q(Zsqrtd.ofInt $m) =>
+  | ~q(Int.cast $m) =>
     return ⟨q($m), q(0), q(rfl)⟩
   |_ => throwError "currently do not handle this"
 
@@ -36,13 +36,15 @@ def normalize {d : ℤ} (z : Q(Zsqrtd $d)) : MetaM (Σ a b : Q(ℤ), Q($z = ⟨$
 
 elab "norm_num_sqrtd" : conv => do
   let z ← Elab.Tactic.Conv.getLhs
-  -- let d ← match z with
-  --   | ~q(Zsqrtd $d) => return d
-  --   | _ => throwError "expected a term of the form `Zsqrtd d`"
-  -- unless (q(Zsqrtd $d) == (← inferType z)) do throwError "{z} is not a complex number"
-  -- have z : Q(ℂ) := z
-  let ⟨a, b, pf⟩ ← normalize (d := sorry) z
-  -- Conv.applySimpResult { expr := q(Complex.mk $a $b), proof? := some pf }
+  let t ← Lean.Meta.inferType z
+  let .app _ d := t | throwError "{z} is not a zsqrtd"
+  let some d_int := d.int? | throwError "hahaha"
+  let ⟨a, b, pf⟩ ← normalize (d := d_int) z
+  let e ← Meta.mkAppOptM ``Zsqrtd.mk #[d, a, b]
+  Elab.Tactic.Conv.applySimpResult { expr := e, proof? := some pf }
+
+-- example: (⟨1, 3⟩ : Zsqrtd 2) * (⟨1, -3⟩ : Zsqrtd 2) = 34 := by
+--   conv_lhs => norm_num_sqrtd
 
 end NormNumSqrtd
 #exit
