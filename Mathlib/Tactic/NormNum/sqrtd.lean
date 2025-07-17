@@ -43,8 +43,9 @@ elab "norm_num_sqrtd" : conv => do
   let e ← Meta.mkAppOptM ``Zsqrtd.mk #[d, a, b]
   Elab.Tactic.Conv.applySimpResult { expr := e, proof? := some pf }
 
--- example: (⟨1, 3⟩ : Zsqrtd 2) * (⟨1, -3⟩ : Zsqrtd 2) = 34 := by
---   conv_lhs => norm_num_sqrtd
+example : (⟨1, 3⟩ : Zsqrtd (-1)) * (⟨1, -3⟩ : Zsqrtd (-1)) = 10 := by
+  conv_lhs => norm_num_sqrtd
+  conv_rhs => norm_num_sqrtd
 
 end NormNumSqrtd
 #exit
