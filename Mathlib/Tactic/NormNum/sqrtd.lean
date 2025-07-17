@@ -3,6 +3,11 @@ import Mathlib
 open Lean Qq Zsqrtd
 
 namespace NormNumSqrtd
+
+theorem eq_eq {d : ℤ} {z : Zsqrtd d} {a b a' b' : ℤ} (pf : z = ⟨a, b⟩) (pf_a : a = a')
+    (pf_b : b = b') : z = ⟨a', b'⟩ := by simp [pf, pf_a, pf_b]
+
+example (d : ℤ) (a : ℤ) : (a : Zsqrtd d) = Zsqrtd.ofInt a := rfl
 partial def parse (d : ℤ) (z : Q(Zsqrtd $d)) :
     MetaM (Σ a b : Q(ℤ),  Q($z = ⟨$a, $b⟩)) := do
   match z with
@@ -13,11 +18,31 @@ partial def parse (d : ℤ) (z : Q(Zsqrtd $d)) :
   | ~q($z1 + $z2) =>
     return ⟨q($z1.1 + $z2.1), q($z1.2 + $z2.2), q(Zsqrtd.add_def _ _ _ _)⟩
   | ~q(-$w) =>
-    return ⟨q(-$w.1), q(-$w.2), q(show -$w = _ by rfl)⟩
+    return ⟨q(-$w.1), q(-$w.2), q(rfl)⟩
   | ~q($z1 - $z2) => parse d q($z1 + -$z2)
   | ~q($z1 * $z2) =>
     return ⟨q($z1.1 * $z2.1 + $d * $z1.2 * $z2.2), q($z1.1 * $z2.2 + $z1.2 * $z2.1), q(rfl)⟩
+  | ~q(Zsqrtd.ofInt $m) =>
+    return ⟨q($m), q(0), q(rfl)⟩
   |_ => throwError "currently do not handle this"
+
+def normalize {d : ℤ} (z : Q(Zsqrtd $d)) : MetaM (Σ a b : Q(ℤ), Q($z = ⟨$a, $b⟩)) := do
+  let ⟨a, b, pf⟩ ← parse d z
+  let ra ← Mathlib.Meta.NormNum.derive (α := q(ℤ)) a
+  let rb ← Mathlib.Meta.NormNum.derive (α := q(ℤ)) b
+  let { expr := (a' : Q(ℤ)), proof? := (pf_a : Q($a = $a')) } ← ra.toSimpResult | unreachable!
+  let { expr := (b' : Q(ℤ)), proof? := (pf_b : Q($b = $b')) } ← rb.toSimpResult | unreachable!
+  return ⟨a', b', q(eq_eq $pf $pf_a $pf_b)⟩
+
+elab "norm_num_sqrtd" : conv => do
+  let z ← Elab.Tactic.Conv.getLhs
+  -- let d ← match z with
+  --   | ~q(Zsqrtd $d) => return d
+  --   | _ => throwError "expected a term of the form `Zsqrtd d`"
+  -- unless (q(Zsqrtd $d) == (← inferType z)) do throwError "{z} is not a complex number"
+  -- have z : Q(ℂ) := z
+  let ⟨a, b, pf⟩ ← normalize (d := sorry) z
+  -- Conv.applySimpResult { expr := q(Complex.mk $a $b), proof? := some pf }
 
 end NormNumSqrtd
 #exit
