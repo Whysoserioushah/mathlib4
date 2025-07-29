@@ -413,4 +413,36 @@ instance instCommRing [CommRing R] : CommRing (QuadraticAlgebra R a b) where
 
 end CommRing
 
+section Field
+
+variable (F) [Field F] (a b : F)
+instance : Inv (QuadraticAlgebra F a b) where
+  inv z := ⟨(-z.1 - a * z.2) / (z.1 ^ 2 - a * z.1 * z.2 + b * z.im ^ 2),
+    z.2 / (z.1 ^ 2 - a * z.1 * z.2 + b * z.im ^ 2)⟩
+
+theorem inv_eq (z : QuadraticAlgebra F a b) :
+    z⁻¹ = ⟨(-z.re - a * z.im) / (z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2),
+      z.im / (z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2)⟩ := rfl
+
+@[simp]
+theorem inv_zero : (0 : QuadraticAlgebra F a b)⁻¹ = 0 := by
+  ext <;> simp [inv_eq]
+
+@[simp]
+theorem inv_re (z : QuadraticAlgebra F a b) :
+    z⁻¹.re = (-z.re - a * z.im) / (z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2) := rfl
+
+@[simp]
+theorem inv_im (z : QuadraticAlgebra F a b) :
+    z⁻¹.im = z.im / (z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2) := rfl
+
+lemma inv_re_zero (z : QuadraticAlgebra F a b) (h1 : z.1 = 0) :
+    z⁻¹ = (b * z.2)⁻¹ • ⟨-a, 1⟩ := by
+  simp [inv_eq, h1]
+  if h2 : z.im = 0 then simp [h2] else
+
+  sorry
+
+end Field
+
 end QuadraticAlgebra
