@@ -179,18 +179,18 @@ section Mul
 variable [Mul R] [Add R]
 
 instance : Mul (QuadraticAlgebra R a b) :=
-  ⟨fun z w => ⟨z.1 * w.1 + b * z.2 * w.2, z.1 * w.2 + z.2 * w.1 + a * z.2 * w.2⟩⟩
+  ⟨fun z w => ⟨z.1 * w.1 + a * z.2 * w.2, z.1 * w.2 + z.2 * w.1 + b * z.2 * w.2⟩⟩
 
 @[simp] theorem mul_re (z w : QuadraticAlgebra R a b) :
-    (z * w).re = z.re * w.re + b * z.im * w.im := rfl
+    (z * w).re = z.re * w.re + a * z.im * w.im := rfl
 
 @[simp] theorem mul_im (z w : QuadraticAlgebra R a b) :
-    (z * w).im = z.re * w.im + z.im * w.re + a * z.im * w.im := rfl
+    (z * w).im = z.re * w.im + z.im * w.re + b * z.im * w.im := rfl
 
 @[simp]
 theorem mk_mul_mk (x1 y1 x2 y2 : R) :
     (mk x1 y1 : QuadraticAlgebra R a b) * mk x2 y2 =
-    mk (x1 * x2 + b * y1 * y2) (x1 * y2 + y1 * x2 + a * y1 * y2) := rfl
+    mk (x1 * x2 + a * y1 * y2) (x1 * y2 + y1 * x2 + b * y1 * y2) := rfl
 
 end Mul
 
@@ -413,36 +413,92 @@ instance instCommRing [CommRing R] : CommRing (QuadraticAlgebra R a b) where
 
 end CommRing
 
-section Field
 
-variable (F) [Field F] (a b : F)
-instance : Inv (QuadraticAlgebra F a b) where
-  inv z := ⟨(-z.1 - a * z.2) / (z.1 ^ 2 - a * z.1 * z.2 + b * z.im ^ 2),
-    z.2 / (z.1 ^ 2 - a * z.1 * z.2 + b * z.im ^ 2)⟩
+section Star
 
-theorem inv_eq (z : QuadraticAlgebra F a b) :
-    z⁻¹ = ⟨(-z.re - a * z.im) / (z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2),
-      z.im / (z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2)⟩ := rfl
+variable [Add R] [Mul R] [Neg R]
 
-@[simp]
-theorem inv_zero : (0 : QuadraticAlgebra F a b)⁻¹ = 0 := by
-  ext <;> simp [inv_eq]
+instance quadraticStar : Star (QuadraticAlgebra R a b) where
+  star z := ⟨z.1 + b * z.2, -z.2⟩
 
-@[simp]
-theorem inv_re (z : QuadraticAlgebra F a b) :
-    z⁻¹.re = (-z.re - a * z.im) / (z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2) := rfl
+@[simp] theorem star_re (z : QuadraticAlgebra R a b) : (star z).re = z.re + b * z.im := rfl
 
-@[simp]
-theorem inv_im (z : QuadraticAlgebra F a b) :
-    z⁻¹.im = z.im / (z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2) := rfl
+@[simp] theorem star_im (z : QuadraticAlgebra R a b) : (star z).im = -z.im := rfl
 
-lemma inv_re_zero (z : QuadraticAlgebra F a b) (h1 : z.1 = 0) :
-    z⁻¹ = (b * z.2)⁻¹ • ⟨-a, 1⟩ := by
-  simp [inv_eq, h1]
-  if h2 : z.im = 0 then simp [h2] else
+@[simp] theorem star_mk (x y : R) : star (mk x y : QuadraticAlgebra R a b) = ⟨x + b * y, -y⟩ := rfl
 
-  sorry
+end Star
+section StarRing
 
-end Field
+instance [CommRing R] : StarRing (QuadraticAlgebra R a b) where
+  star_involutive _ := by ext <;> simp
+  star_mul z w := by ext <;> simp <;> ring
+  star_add z w := by ext <;> simp [add_comm] ; ring
+
+end StarRing
+
+
+section Norm
+
+
+def normSq [CommRing R] : QuadraticAlgebra R a b →*₀ R where
+  toFun z := (z * star z).re
+  map_zero' := by simp
+  map_one' := by simp
+  map_mul' _ _ := by simpa using by ring
+
+
+end Norm
+-- section Field
+
+-- variable (F) [Field F] (a b : F)
+-- instance : Inv (QuadraticAlgebra F a b) where
+--   inv z := ⟨(-z.1 - a * z.2) / (-z.1 ^ 2 - a * z.1 * z.2 + b * z.im ^ 2),
+--     z.2 / (-z.1 ^ 2 - a * z.1 * z.2 + b * z.im ^ 2)⟩
+
+-- theorem inv_eq (z : QuadraticAlgebra F a b) :
+--     z⁻¹ = ⟨(-z.re - a * z.im) / (-z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2),
+--       z.im / (-z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2)⟩ := rfl
+
+-- @[simp]
+-- theorem inv_zero : (0 : QuadraticAlgebra F a b)⁻¹ = 0 := by
+--   ext <;> simp [inv_eq]
+
+-- @[simp]
+-- theorem inv_re (z : QuadraticAlgebra F a b) :
+--     z⁻¹.re = (-z.re - a * z.im) / (-z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2) := rfl
+
+-- @[simp]
+-- theorem inv_im (z : QuadraticAlgebra F a b) :
+--     z⁻¹.im = z.im / (-z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2) := rfl
+
+-- lemma inv_re_zero (z : QuadraticAlgebra F a b) (h1 : z.1 = 0) :
+--     z⁻¹ = (b * z.2)⁻¹ • ⟨-a, 1⟩ := by
+--   simp [inv_eq, h1]
+--   if h2 : z.im = 0 then simp [h2] else
+--   field_simp [mul_comm, pow_two]
+--   simp only [← mul_assoc, ← neg_mul]
+--   constructor
+--   · exact mul_div_mul_right (-a) (b * z.im) h2
+--   · nth_rw 1 [← one_mul z.2]
+--     exact mul_div_mul_right 1 (b * z.im) h2
+
+-- lemma inv_im_zero (z : QuadraticAlgebra F a b) (h1 : z.2 = 0) :
+--     z⁻¹ = z.re⁻¹ • 1 := by
+--   ext <;> simp [pow_two, h1]
+
+-- lemma mul_inv_cancel (z : QuadraticAlgebra F a b) (h : z ≠ 0) :
+--     z * z⁻¹ = 1 := by
+--   haveI : -z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2 ≠ 0 := by
+--     -- linarith
+--     sorry
+--   ext
+--   <;> simp [pow_two, div_eq_one_iff_eq]
+--   · field_simp
+
+--     sorry
+--   · sorry
+
+-- end Field
 
 end QuadraticAlgebra
