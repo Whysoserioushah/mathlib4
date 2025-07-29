@@ -656,9 +656,6 @@ theorem star_add_self : star a + a = 2 * a.re + c₂ * a.imI := by rw [add_comm,
 theorem star_eq_two_re_sub : star a = ↑(2 * a.re + c₂ * a.imI) - a :=
   eq_sub_iff_add_eq.2 a.star_add_self'
 
-lemma comm (r : R) (x : ℍ[R,c₁,c₂,c₃]) : r * x = x * r := by
-  ext <;> simp [mul_comm]
-
 instance : IsStarNormal a :=
   ⟨by
     rw [commute_iff_eq, a.star_eq_two_re_sub];

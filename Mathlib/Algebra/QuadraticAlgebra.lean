@@ -413,7 +413,6 @@ instance instCommRing [CommRing R] : CommRing (QuadraticAlgebra R a b) where
 
 end CommRing
 
-
 section Star
 
 variable [Add R] [Mul R] [Neg R]
@@ -429,76 +428,145 @@ instance quadraticStar : Star (QuadraticAlgebra R a b) where
 
 end Star
 section StarRing
+variable [CommRing R]
 
-instance [CommRing R] : StarRing (QuadraticAlgebra R a b) where
+instance : StarRing (QuadraticAlgebra R a b) where
   star_involutive _ := by ext <;> simp
   star_mul z w := by ext <;> simp <;> ring
   star_add z w := by ext <;> simp [add_comm] ; ring
 
-end StarRing
+theorem self_add_star' (z : QuadraticAlgebra R a b) : z + star z = ↑(2 * z.re + b * z.im) := by
+  ext <;> simp [two_mul, add_assoc]
 
+theorem self_add_star (z : QuadraticAlgebra R a b) :
+    z + star z = 2 * z.re + b * z.im := by
+  ext <;> simp [self_add_star']
+
+theorem star_add_self' (z : QuadraticAlgebra R a b) :
+    star z + z = ↑(2 * z.re + b * z.im) := by
+  ext <;> simp [two_mul, add_comm, add_assoc]
+
+theorem star_add_self (z : QuadraticAlgebra R a b) :
+    star z + z = 2 * z.re + b * z.im := by
+  ext <;> simp [star_add_self']
+
+theorem star_eq_two_re_sub (z : QuadraticAlgebra R a b) :
+    star z = ↑(2 * z.re + b * z.im) - z :=
+  eq_sub_iff_add_eq.2 z.star_add_self'
+
+instance (z : QuadraticAlgebra R a b) : IsStarNormal z :=
+  ⟨by
+    rw [commute_iff_eq, z.star_eq_two_re_sub];
+    ext <;> simp <;> ring⟩
+
+@[simp, norm_cast]
+theorem star_coe (r : R) : star (r : QuadraticAlgebra R a b) = r := by ext <;> simp
+
+@[simp]
+theorem star_smul [Monoid S] [DistribMulAction S R] [SMulCommClass S R R]
+    (s : S) (z : QuadraticAlgebra R a b) : star (s • z) = s • star z :=
+  QuadraticAlgebra.ext (by simp [mul_smul_comm]) (smul_neg _ _).symm
+
+theorem star_smul' [Monoid S] [DistribMulAction S R] (s : S) (z : QuadraticAlgebra R a 0) :
+    star (s • z) = s • star z :=
+  QuadraticAlgebra.ext (by simp) (smul_neg _ _).symm
+
+theorem eq_re_of_eq_coe {z : QuadraticAlgebra R a b} {x : R} (h : z = x) : z = z.re := by
+  rw [h, coe_re]
+
+theorem eq_re_iff_mem_range_coe {z : QuadraticAlgebra R a b} :
+    z = z.re ↔ z ∈ Set.range coe := ⟨fun h ↦ ⟨z.re, h.symm⟩, fun ⟨_, h⟩ ↦ eq_re_of_eq_coe h.symm⟩
+
+theorem star_mul_eq_coe {z : QuadraticAlgebra R a b} : star z * z = (star z * z).re := by
+  ext <;> simp ; ring
+
+theorem mul_star_eq_coe {z : QuadraticAlgebra R a b} : z * star z = (z * star z).re := by
+  ext <;> simp ; ring
+
+open MulOpposite in
+def starAe : QuadraticAlgebra R a b ≃ₐ[R] (QuadraticAlgebra R a b)ᵐᵒᵖ :=
+  { starAddEquiv.trans opAddEquiv with
+    map_mul' _ _ := by simp [star_mul]
+    commutes' _ := by simp}
+
+@[simp]
+lemma coe_starAe : ⇑starAe = MulOpposite.op ∘ (star (R := QuadraticAlgebra R a b)) := rfl
+
+end StarRing
 
 section Norm
 
+variable [CommRing R]
 
-def normSq [CommRing R] : QuadraticAlgebra R a b →*₀ R where
+def normSq : QuadraticAlgebra R a b →*₀ R where
   toFun z := (z * star z).re
   map_zero' := by simp
   map_one' := by simp
   map_mul' _ _ := by simpa using by ring
 
+theorem normSq_def (z : QuadraticAlgebra R a b) : normSq z = (z * star z).re := rfl
+
+theorem normSq_def' (z : QuadraticAlgebra R a b) :
+    normSq z = z.re ^ 2 + b * z.im * z.re - a * z.im ^ 2 := by
+  rw [normSq_def]; simp ; ring
+
+theorem normSq_coe (r : R) : normSq (r : QuadraticAlgebra R a b) = r ^ 2 := by
+  simp [normSq_def, pow_two]
+
+@[simp]
+theorem normSq_star (z : QuadraticAlgebra R a b) : normSq (star z) = normSq z := by
+  simp [normSq_def']; ring
+
+@[norm_cast]
+theorem normSq_natCast (n : ℕ) : normSq (n : QuadraticAlgebra R a b) = n ^ 2 :=
+  coe_natCast (R := R) n |>.symm ▸ normSq_coe _
+
+@[norm_cast]
+theorem normSq_intCast (n : ℤ) : normSq (n : QuadraticAlgebra R a b) = n ^ 2 :=
+  coe_intCast (R := R) n |>.symm ▸ normSq_coe _
+
+@[simp]
+theorem normSq_neg (z : QuadraticAlgebra R a b) : normSq (-z) = normSq z := by
+  simp [normSq_def]
+
+theorem self_mul_star (z : QuadraticAlgebra R a b) :
+    z * star z = normSq z := by rw [mul_star_eq_coe, normSq_def]
+
+theorem star_self_mul (z : QuadraticAlgebra R a b) :
+    star z * z = normSq z := by rw [star_mul_eq_coe, normSq_def, mul_comm]
 
 end Norm
--- section Field
 
--- variable (F) [Field F] (a b : F)
--- instance : Inv (QuadraticAlgebra F a b) where
---   inv z := ⟨(-z.1 - a * z.2) / (-z.1 ^ 2 - a * z.1 * z.2 + b * z.im ^ 2),
---     z.2 / (-z.1 ^ 2 - a * z.1 * z.2 + b * z.im ^ 2)⟩
+section Field
 
--- theorem inv_eq (z : QuadraticAlgebra F a b) :
---     z⁻¹ = ⟨(-z.re - a * z.im) / (-z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2),
---       z.im / (-z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2)⟩ := rfl
+variable [Field R]
 
--- @[simp]
--- theorem inv_zero : (0 : QuadraticAlgebra F a b)⁻¹ = 0 := by
---   ext <;> simp [inv_eq]
+instance : NNRatCast (QuadraticAlgebra R a b) where nnratCast q := (q : R)
 
--- @[simp]
--- theorem inv_re (z : QuadraticAlgebra F a b) :
---     z⁻¹.re = (-z.re - a * z.im) / (-z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2) := rfl
+instance : RatCast (QuadraticAlgebra R a b) where ratCast q := (q : R)
 
--- @[simp]
--- theorem inv_im (z : QuadraticAlgebra F a b) :
---     z⁻¹.im = z.im / (-z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2) := rfl
+@[simp, norm_cast] lemma re_nnratCast (q : ℚ≥0) : (q : QuadraticAlgebra R a b).re = q := rfl
 
--- lemma inv_re_zero (z : QuadraticAlgebra F a b) (h1 : z.1 = 0) :
---     z⁻¹ = (b * z.2)⁻¹ • ⟨-a, 1⟩ := by
---   simp [inv_eq, h1]
---   if h2 : z.im = 0 then simp [h2] else
---   field_simp [mul_comm, pow_two]
---   simp only [← mul_assoc, ← neg_mul]
---   constructor
---   · exact mul_div_mul_right (-a) (b * z.im) h2
---   · nth_rw 1 [← one_mul z.2]
---     exact mul_div_mul_right 1 (b * z.im) h2
+@[simp, norm_cast] lemma im_nnratCast (q : ℚ≥0) : (q : QuadraticAlgebra R a b).im = 0 := rfl
 
--- lemma inv_im_zero (z : QuadraticAlgebra F a b) (h1 : z.2 = 0) :
---     z⁻¹ = z.re⁻¹ • 1 := by
---   ext <;> simp [pow_two, h1]
+@[simp, norm_cast] lemma re_ratCast (q : ℚ) : (q : QuadraticAlgebra R a b).re = q := rfl
 
--- lemma mul_inv_cancel (z : QuadraticAlgebra F a b) (h : z ≠ 0) :
---     z * z⁻¹ = 1 := by
---   haveI : -z.re ^ 2 - a * z.re * z.im + b * z.im ^ 2 ≠ 0 := by
---     -- linarith
---     sorry
---   ext
---   <;> simp [pow_two, div_eq_one_iff_eq]
---   · field_simp
+@[simp, norm_cast] lemma im_ratCast (q : ℚ) : (q : QuadraticAlgebra R a b).im = 0 := rfl
 
---     sorry
---   · sorry
+@[norm_cast] lemma coe_nnratCast (q : ℚ≥0) : (q : R) = (q : QuadraticAlgebra R a b) := rfl
 
--- end Field
+@[norm_cast] lemma coe_ratCast (q : ℚ) : (q : R) = (q : QuadraticAlgebra R a b) := rfl
+
+@[simps -isSimp]
+instance : Inv (QuadraticAlgebra R a b) where inv z := (normSq z)⁻¹ • star z
+
+instance : GroupWithZero (QuadraticAlgebra R a b) where
+  inv_zero := by simp [inv_def]
+  mul_inv_cancel z hz := by
+    rw [inv_def, mul_smul_comm, self_mul_star, smul_coe, inv_mul_cancel₀ (fun h ↦ by
+      rw [normSq_def'] at h
+      sorry), coe_one]
+
+end Field
 
 end QuadraticAlgebra
