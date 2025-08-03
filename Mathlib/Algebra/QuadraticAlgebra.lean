@@ -560,12 +560,14 @@ instance : RatCast (QuadraticAlgebra R a b) where ratCast q := (q : R)
 @[simps -isSimp]
 instance : Inv (QuadraticAlgebra R a b) where inv z := (normSq z)⁻¹ • star z
 
-instance : GroupWithZero (QuadraticAlgebra R a b) where
-  inv_zero := by simp [inv_def]
-  mul_inv_cancel z hz := by
-    rw [inv_def, mul_smul_comm, self_mul_star, smul_coe, inv_mul_cancel₀ (fun h ↦ by
-      rw [normSq_def'] at h
-      sorry), coe_one]
+def equiv_zsqrtd (d : ℤ) : Zsqrtd d ≃ₐ[ℤ] QuadraticAlgebra ℤ d 0 where
+  toFun z := ⟨z.1, z.2⟩
+  invFun z := ⟨z.1, z.2⟩
+  left_inv _ := rfl
+  right_inv _ := rfl
+  map_mul' _ _ := by simp
+  map_add' _ _ := by simp; rfl
+  commutes' _ := by simp; rfl
 
 end Field
 
