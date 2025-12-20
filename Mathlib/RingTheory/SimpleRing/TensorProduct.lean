@@ -40,7 +40,6 @@ variable (K : Type u) [Field K]
 open scoped TensorProduct
 
 open Module
-
 variable {K} in
 /--
 a non-zero element in an ideal that can be represented as a sum of tensor products of `n`-terms.
@@ -112,7 +111,34 @@ lemma TensorProduct.sum_tmul_basis_left_eq_zero'
   apply_fun TensorProduct.comm K B C at h
   simpa using h
 
-universe w
+instance TensorProduct.nontrivial
+    (A B : Type v) [Ring A] [Algebra K A] [Ring B] [Algebra K B]
+    [Nontrivial A] [Nontrivial B] :
+    Nontrivial (A ⊗[K] B) :=
+  nontrivial_of_linearMap_injective_of_flat_right K A B (Algebra.linearMap _ _)
+    (FaithfulSMul.algebraMap_injective _ _)
+
+-- attribute [local instance] Algebra.TensorProduct.rightAlgebra in
+lemma TensorProduct.map_comap_eq_zero_if_zero
+    {A B : Type v} [Ring A] [Algebra K A] [Ring B] [Algebra K B]
+    [isSimple_A : IsSimpleRing A]
+    [isCentral_B : Algebra.IsCentral K A]
+    [isSimple_B : IsSimpleRing B]
+    (I : TwoSidedIdeal (A ⊗[K] B))
+    (hAB : letI f : A →ₐ[K] A ⊗[K] B := Algebra.TensorProduct.includeLeft
+      (I.comap f).map f = ⊥) : I = ⊥ := by
+  obtain ⟨ι, 𝓑⟩ := Module.Free.exists_basis K B
+  have main (s : Finset ι) (a : ι → A) (h : ∑ i ∈ s, a i ⊗ₜ[K] 𝓑 i ∈ I) :
+      ∀ i ∈ s, a i = 0 := by
+    classical
+    induction s using Finset.induction_on generalizing a with
+    | empty => simp
+    | insert j s hjs ih =>
+    rcases (eq_or_ne (a j) 0) with hj | hj
+    · aesop
+    · simp [hj]
+      sorry
+  sorry
 
 lemma TensorProduct.map_comap_eq_of_isSimple_isCentralSimple
     {A B : Type v} [Ring A] [Algebra K A] [Ring B] [Algebra K B]
