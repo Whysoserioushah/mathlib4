@@ -80,43 +80,54 @@ lemma is_obtainable_by_sum_tmul.exists_minimal_element
     subst hx1
     exact hx0 I.zero_mem |>.elim
 
-lemma TensorProduct.sum_tmul_basis_right_eq_zero'
-    (B : Type*) [Ring B] [Algebra K B]
-    (C : Type*) [Ring C] [Algebra K C]
-    {ιC : Type*} (𝒞 : Basis ιC K C)
-    (s : Finset ιC) (b : ιC → B)
-    (h : ∑ i ∈ s, b i ⊗ₜ[K] 𝒞 i = 0) :
-    ∀ i ∈ s, b i = 0 := by
-  classical
-  intro i
-  have := TensorProduct.sum_tmul_basis_right_eq_zero (κ := ιC) 𝒞 (M := B)
-    { support := s.filter fun i ↦ b i ≠ 0
-      toFun := fun x => if x ∈ s then b x else 0
-      mem_support_toFun := by simp }
-    (by
-      simp only [Finsupp.sum, ne_eq, Finsupp.coe_mk, Finset.sum_filter, ite_not]
-      rw [← h]
-      congr!
-      aesop)
-  simpa using Finsupp.ext_iff.mp this i
+-- lemma TensorProduct.sum_tmul_basis_right_eq_zero'
+--     (B : Type*) [Ring B] [Algebra K B]
+--     (C : Type*) [Ring C] [Algebra K C]
+--     {ιC : Type*} (𝒞 : Basis ιC K C)
+--     (s : Finset ιC) (b : ιC → B)
+--     (h : ∑ i ∈ s, b i ⊗ₜ[K] 𝒞 i = 0) :
+--     ∀ i ∈ s, b i = 0 := by
+--   classical
+--   intro i
+--   have := TensorProduct.sum_tmul_basis_right_eq_zero (κ := ιC) 𝒞 (M := B)
+--     { support := s.filter fun i ↦ b i ≠ 0
+--       toFun := fun x => if x ∈ s then b x else 0
+--       mem_support_toFun := by simp }
+--     (by
+--       simp only [Finsupp.sum, ne_eq, Finsupp.coe_mk, Finset.sum_filter, ite_not]
+--       rw [← h]
+--       congr!
+--       aesop)
+--   simpa using Finsupp.ext_iff.mp this i
 
-lemma TensorProduct.sum_tmul_basis_left_eq_zero'
-    (B : Type*) [Ring B] [Algebra K B]
-    (C : Type*) [Ring C] [Algebra K C]
-    {ιB : Type*} (ℬ : Basis ιB K B)
-    (s : Finset ιB) (c : ιB → C)
-    (h : ∑ i ∈ s, ℬ i ⊗ₜ[K] c i = 0) :
-    ∀ i ∈ s, c i = 0 := by
-  apply TensorProduct.sum_tmul_basis_right_eq_zero' K C B ℬ s c
-  apply_fun TensorProduct.comm K B C at h
-  simpa using h
+-- lemma TensorProduct.sum_tmul_basis_left_eq_zero'
+--     (B : Type*) [Ring B] [Algebra K B]
+--     (C : Type*) [Ring C] [Algebra K C]
+--     {ιB : Type*} (ℬ : Basis ιB K B)
+--     (s : Finset ιB) (c : ιB → C)
+--     (h : ∑ i ∈ s, ℬ i ⊗ₜ[K] c i = 0) :
+--     ∀ i ∈ s, c i = 0 := by
+--   classical
+--   have := TensorProduct.sum_tmul_basis_left_eq_zero (ι := ιB) ℬ (N := C)
+--     { support := s.filter fun i ↦ c i ≠ 0
+--       toFun := fun x => if x ∈ s then c x else 0
+--       mem_support_toFun := by simp }
+--     (by
+--       simp only [Finsupp.sum, ne_eq, Finsupp.coe_mk, Finset.sum_filter, ite_not]
+--       rw [← h]
+--       congr!
+--       aesop)
+--   simpa? using Finsupp.ext_iff.mp this
+  -- apply TensorProduct.sum_tmul_basis_right_eq_zero' K C B ℬ s c
+  -- apply_fun TensorProduct.comm K B C at h
+  -- simpa using h
 
-instance TensorProduct.nontrivial
-    (A B : Type v) [Ring A] [Algebra K A] [Ring B] [Algebra K B]
-    [Nontrivial A] [Nontrivial B] :
-    Nontrivial (A ⊗[K] B) :=
-  nontrivial_of_linearMap_injective_of_flat_right K A B (Algebra.linearMap _ _)
-    (FaithfulSMul.algebraMap_injective _ _)
+-- instance TensorProduct.nontrivial
+--     (A B : Type v) [Ring A] [Algebra K A] [Ring B] [Algebra K B]
+--     [Nontrivial A] [Nontrivial B] :
+--     Nontrivial (A ⊗[K] B) :=
+--   nontrivial_of_linearMap_injective_of_flat_right K A B (Algebra.linearMap _ _)
+--     (FaithfulSMul.algebraMap_injective _ _)
 
 -- attribute [local instance] Algebra.TensorProduct.rightAlgebra in
 lemma TensorProduct.map_comap_eq_zero_if_zero
@@ -224,7 +235,7 @@ lemma TensorProduct.map_comap_eq_of_isSimple_isCentralSimple
         ∑ i ∈ s.erase i₀, 𝒜 i ⊗ₜ[K]
           (∑ j : ℐ, (x * (xL j * b i * xR j) - (xL j * b i * xR j) * x)) := by
       rw [Ω_eq]
-      simp only [TensorProduct.tmul_sum, mul_add, Algebra.TensorProduct.tmul_mul_tmul, one_mul,
+      simp [TensorProduct.tmul_sum, mul_add, Algebra.TensorProduct.tmul_mul_tmul, one_mul,
         mul_one, Finset.mul_sum, add_mul, Finset.sum_mul, add_sub_add_left_eq_sub,
         Finset.sum_sub_distrib, TensorProduct.tmul_sub]
     have Ω_prop_3 (x : B) : ((1 : A) ⊗ₜ[K] x) * Ω - Ω * ((1 : A) ⊗ₜ[K] x) = 0 := by
@@ -242,7 +253,24 @@ lemma TensorProduct.map_comap_eq_of_isSimple_isCentralSimple
       specialize Ω_prop_3 x
       simp only [Finset.mul_sum, Finset.sum_mul, ← sub_eq_zero, sub_zero]
       rw [← Finset.sum_sub_distrib, sub_zero]
-      simpa using TensorProduct.sum_tmul_basis_left_eq_zero' _ _ _ 𝒜 (s.erase i₀) _ Ω_prop_3 i hi
+      have := TensorProduct.sum_tmul_basis_left_eq_zero 𝒜 (M := A) (N := B) {
+        support := (s.erase i₀).filter (fun i ↦
+          ∑ j, (x * (xL j * b i * xR j) - xL j * b i * xR j * x) ≠ 0)
+        toFun := fun i ↦ if i ∈ s.erase i₀ then (∑ j : ℐ, (x * (xL j * b i * xR j) -
+          xL j * b i * xR j * x)) else 0
+        mem_support_toFun := by grind
+      } <| by
+        simp only [Finsupp.sum, ne_eq, Finset.mem_erase, Finsupp.coe_mk, Finset.sum_filter, ite_not]
+        conv_rhs => rw [← Ω_prop_3]
+        congr! with a ha
+        split_ifs with hi hi'
+        · rw [hi, tmul_zero]
+        · rfl
+        · simp only [not_and, Finset.mem_erase, ne_eq] at hi' ha
+          exact False.elim <| hi' ha.1 ha.2
+      simp only [Finsupp.ext_iff, ne_eq, Finsupp.coe_mk, Finsupp.coe_zero,
+        Pi.zero_apply, ite_eq_right_iff] at this
+      exact this i hi
     simp_rw [Algebra.IsCentral.center_eq_bot, Algebra.mem_bot, Set.mem_range] at Ω_prop_4
     choose k hk using Ω_prop_4
     have Ω_eq2 := calc Ω
@@ -281,21 +309,11 @@ lemma TensorProduct.map_comap_eq_of_isSimple_isCentralSimple
         else if h : i ∈ s.erase i₀ then k i h else 0) (by
         dsimp only
         simp_rw [ite_smul, one_smul, dite_smul, zero_smul]
-        rw [Finset.sum_ite,
-          show ∑ x ∈ Finset.filter (fun x ↦ x = i₀) s, 𝒜 x = ∑ x ∈ {i₀}, 𝒜 x by
-          refine Finset.sum_congr ?_ fun _ _ => rfl
-          ext
-          simp only [Finset.mem_filter, Finset.mem_singleton, and_iff_right_iff_imp]
-          rintro rfl
-          exact hi₀, Finset.sum_singleton,
-          show Finset.filter (fun x ↦ ¬x = i₀) s = s.erase i₀ by
-          ext
-          simp only [Finset.mem_filter, Finset.mem_erase, ne_eq]
-          rw [and_comm], ← Finset.sum_attach]
+        rw [Finset.sum_ite, Finset.sum_congr (s₁ := s.filter (fun x ↦ x = i₀)) (s₂ := {i₀})
+          (by simp [Finset.ext_iff, hi₀]) (fun _ _ => rfl), Finset.sum_singleton,
+          show Finset.filter (fun x ↦ ¬x = i₀) s = s.erase i₀ by grind, ← Finset.sum_attach]
         conv_rhs => rw [← mem]
-        congr 1
-        refine Finset.sum_congr rfl fun i _ => ?_
-        rw [dif_pos i.2]) i₀ hi₀
+        simp) i₀ hi₀
       rw [if_pos rfl] at LI
       exact zero_ne_one LI.symm
     rw [hI, TwoSidedIdeal.coe_top, TwoSidedIdeal.le_iff]
