@@ -129,15 +129,32 @@ lemma is_obtainable_by_sum_tmul.exists_minimal_element
 --   nontrivial_of_linearMap_injective_of_flat_right K A B (Algebra.linearMap _ _)
 --     (FaithfulSMul.algebraMap_injective _ _)
 
+theorem _root_.TwoSidedIdeal.mem_map_of_mem {R S : Type*}
+    [NonUnitalNonAssocRing R] [NonUnitalNonAssocRing S]
+    {F : Type*} [FunLike F R S] {f : F} {I : TwoSidedIdeal R}
+    {x : R} (hx : x ∈ I) : f x ∈ I.map f :=
+  TwoSidedIdeal.subset_span ⟨x, hx, rfl⟩
+
+theorem _root_.Submodule.mem_span_range_iff_exists' {α M R : Type*}
+    [Semiring R] [AddCommMonoid M] [Module R M] {v : α → M} {x : M} :
+    x ∈ Submodule.span R (Set.range v) ↔ ∃ (s : Finset α) (c : α → R), ∑ i ∈ s, c i • v i = x := by
+  classical
+  rw [← Set.image_univ, Submodule.mem_span_image_iff_exists_fun]
+  simp only [Set.subset_univ, Finset.univ_eq_attach, true_and, ← Finset.sum_attach (ι := α)]
+  refine ⟨fun ⟨s, c, hsc⟩ ↦ ⟨s, fun x ↦ if h : x ∈ s then c ⟨x, h⟩ else 0, ?_⟩,
+    fun ⟨s, c, hsc⟩ ↦ ⟨s, c ∘ Subtype.val, by simpa⟩⟩
+  convert hsc
+  grind
+
 -- attribute [local instance] Algebra.TensorProduct.rightAlgebra in
 lemma TensorProduct.map_comap_eq_zero_if_zero
-    {A B : Type v} [Ring A] [Algebra K A] [Ring B] [Algebra K B]
-    [isSimple_A : IsSimpleRing A]
-    [isCentral_B : Algebra.IsCentral K A]
+    {A B : Type v} [DivisionRing A] [Algebra K A] [Ring B] [Algebra K B]
+    [isCentral_A : Algebra.IsCentral K A]
     [isSimple_B : IsSimpleRing B]
     (I : TwoSidedIdeal (A ⊗[K] B))
-    (hAB : letI f : A →ₐ[K] A ⊗[K] B := Algebra.TensorProduct.includeLeft
+    (hAB : letI f : B →ₐ[K] A ⊗[K] B := Algebra.TensorProduct.includeRight
       (I.comap f).map f = ⊥) : I = ⊥ := by
+  set f : B →ₐ[K] A ⊗[K] B := Algebra.TensorProduct.includeRight
   obtain ⟨ι, 𝓑⟩ := Module.Free.exists_basis K B
   have main (s : Finset ι) (a : ι → A) (h : ∑ i ∈ s, a i ⊗ₜ[K] 𝓑 i ∈ I) :
       ∀ i ∈ s, a i = 0 := by
@@ -145,11 +162,43 @@ lemma TensorProduct.map_comap_eq_zero_if_zero
     induction s using Finset.induction_on generalizing a with
     | empty => simp
     | insert j s hjs ih =>
-    rcases (eq_or_ne (a j) 0) with hj | hj
+    rcases eq_or_ne (a j) 0 with hj | hj
     · aesop
-    · simp [hj]
-      sorry
-  sorry
+    · replace h := I.mul_mem_left ((a j)⁻¹ ⊗ₜ 1) _ h
+      simp_rw [Finset.mul_sum, Algebra.TensorProduct.tmul_mul_tmul,
+        one_mul, Finset.sum_insert hjs, inv_mul_cancel₀ hj] at h
+      have key : ∀ i : s, ∃ k, (a j)⁻¹ * a i = algebraMap K A k := by
+        have (c : A) := I.sub_mem (I.mul_mem_left (c ⊗ₜ 1) _ h) (I.mul_mem_right _ (c ⊗ₜ 1) h)
+        simp_rw [mul_add, add_mul, add_sub_add_comm, Algebra.TensorProduct.tmul_mul_tmul,
+          mul_one, one_mul, sub_self, zero_add, Finset.mul_sum, Finset.sum_mul,
+          ← Finset.sum_sub_distrib, Algebra.TensorProduct.tmul_mul_tmul, mul_one, one_mul,
+          ← sub_tmul] at this
+        exact fun i ↦ (Algebra.IsCentral.mem_center_iff K).mp <| Subalgebra.mem_center_iff.mpr
+          fun c ↦ sub_eq_zero.mp <| ih _ (this c) i i.2
+      choose k hk using key
+      rw [← Finset.sum_attach] at h
+      simp_rw [hk] at h
+      set key : B := 𝓑 j + ∑ i ∈ s.attach, k i • 𝓑 i
+      have hkey : f key ∈ I := by
+        convert h using 1
+        simp [f, key, tmul_add, tmul_sum, -tmul_smul, ← smul_tmul, ← Algebra.algebraMap_eq_smul_one]
+      replace hkey : f key = 0 :=
+        eq_bot_iff.mp hAB <| TwoSidedIdeal.mem_map_of_mem <| (TwoSidedIdeal.mem_comap _).mpr hkey
+      replace hkey := (map_eq_zero_iff _ f.toRingHom.injective).mp hkey
+      set g : ι → K := fun i ↦ if h : i ∈ s then k ⟨i, h⟩ else 1
+      have hg : ∑ i ∈ insert j s, g i • 𝓑 i = 0 := by
+        unfold g
+        rw [Finset.sum_insert hjs, dif_neg hjs, one_smul, ← Finset.sum_attach]
+        simp_rw [dif_pos (Subtype.prop _)]
+        exact hkey
+      have hb := linearIndependent_iff'.mp 𝓑.linearIndependent (insert j s) g hg j
+        (Finset.mem_insert_self _ _)
+      simp [g, dif_neg hjs] at hb
+  refine eq_bot_iff.mpr fun x hx ↦ ?_
+  obtain ⟨s, c, rfl⟩ := Submodule.mem_span_range_iff_exists'.mp <|
+    Submodule.eq_top_iff'.mp (𝓑.baseChange A).span_eq x
+  replace main := main s c (by simpa [← TensorProduct.tmul_eq_smul_one_tmul] using hx)
+  simp +contextual [main]
 
 lemma TensorProduct.map_comap_eq_of_isSimple_isCentralSimple
     {A B : Type v} [Ring A] [Algebra K A] [Ring B] [Algebra K B]
