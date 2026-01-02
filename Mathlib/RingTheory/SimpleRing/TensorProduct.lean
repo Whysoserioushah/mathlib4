@@ -200,6 +200,102 @@ lemma TensorProduct.map_comap_eq_zero_if_zero
   replace main := main s c (by simpa [← TensorProduct.tmul_eq_smul_one_tmul] using hx)
   simp +contextual [main]
 
+@[simp]
+lemma TwoSidedIdeal.span_eq_bot {R : Type*} [NonUnitalNonAssocRing R] {s : Set R} :
+    span s = ⊥ ↔ ∀ x ∈ s, x = 0 := eq_bot_iff.trans
+  ⟨fun H _ h => (mem_bot R).1 <| H <| subset_span h, fun H =>
+    span_le.2 fun x h => (mem_bot R).2 <| H x h⟩
+
+lemma TwoSidedIdeal.span_singleton_eq_bot {R : Type*} [NonUnitalNonAssocRing R] {x : R} :
+    span ({x} : Set R) = ⊥ ↔ x = 0 := by simp
+
+lemma TwoSidedIdeal.map_bot {R S : Type*}
+    [NonUnitalNonAssocRing R] [NonUnitalNonAssocRing S]
+    {F : Type*} [FunLike F R S] [ZeroHomClass F R S] {f : F} :
+    (⊥ : TwoSidedIdeal R).map f = ⊥ := by
+  ext x
+  simp [map, coe_bot, Set.image_singleton, map_zero f, mem_bot, span_singleton_eq_bot.2]
+
+lemma TensorProduct.map_comap_eq
+    {A B : Type v} [DivisionRing A] [Algebra K A] [Ring B] [Algebra K B]
+    [isCentral_A : Algebra.IsCentral K A]
+    [isSimple_B : IsSimpleRing B]
+    (I : TwoSidedIdeal (A ⊗[K] B)) :
+    letI f : B →ₐ[K] A ⊗[K] B := Algebra.TensorProduct.includeRight
+    (I.comap f).map f = I := by
+  let f : B →ₐ[K] A ⊗[K] B := Algebra.TensorProduct.includeRight
+  refine (le_antisymm ?_ ?_).symm
+  · obtain rfl | I_ne_bot := eq_or_ne I ⊥
+    · exact bot_le
+    change I ≤ TwoSidedIdeal.span (Set.image f <| I.comap f)
+    have hI : I.comap f = ⊤ := isSimple_B.1.2 _ |>.resolve_left fun r => by
+      refine I_ne_bot <| TensorProduct.map_comap_eq_zero_if_zero (hAB := ?_)
+      rw [r, TwoSidedIdeal.map_bot]
+    rw [hI, TwoSidedIdeal.coe_top, TwoSidedIdeal.le_iff]
+    rintro x -
+    rw [SetLike.mem_coe]
+    induction x using TensorProduct.induction_on with
+    | zero => simp
+    | tmul a b =>
+      rw [show a ⊗ₜ[K] b = (a ⊗ₜ 1) * (1 ⊗ₜ b) by simp]
+      exact TwoSidedIdeal.mul_mem_left _ _ _ <| TwoSidedIdeal.subset_span ⟨b, ⟨⟩, rfl⟩
+    | add x y hx hy => exact TwoSidedIdeal.add_mem _ hx hy
+  · rw [TwoSidedIdeal.map, TwoSidedIdeal.span_le]
+    rintro _ ⟨x, hx, rfl⟩
+    rw [SetLike.mem_coe, TwoSidedIdeal.mem_comap] at hx
+    exact hx
+
+lemma TensorProduct.simple' {A B : Type v} [DivisionRing A] [Algebra K A] [Ring B] [Algebra K B]
+    [isCentral_A : Algebra.IsCentral K A] [isSimple_B : IsSimpleRing B] :
+    IsSimpleRing (A ⊗[K] B) := by
+  let f : B →ₐ[K] A ⊗[K] B := Algebra.TensorProduct.includeRight
+  suffices eq1 : ∀ (I : TwoSidedIdeal (A ⊗[K] B)),
+      I = TwoSidedIdeal.span (Set.image f <| I.comap f) by
+    refine ⟨⟨fun I => ?_⟩⟩
+    specialize eq1 I
+    rcases isSimple_B.1.2 (I.comap f) with h|h
+    · left
+      rw [eq1, TwoSidedIdeal.span_eq_bot, h]
+      simp
+    · right
+      rw [← TwoSidedIdeal.one_mem_iff, eq1, h]
+      exact TwoSidedIdeal.subset_span ⟨1, by simp⟩
+  exact fun _ ↦ TensorProduct.map_comap_eq K _ |>.symm
+
+lemma Matrix.scalar_injective {n α : Type*} [Semiring α] [DecidableEq n]
+    [Fintype n] [Nonempty n] : Function.Injective (Matrix.scalar (α := α) n) :=
+  fun _ _ h ↦ Matrix.scalar_inj.1 h
+
+lemma Matrix.scalarAlgHom_injective (n R α : Type*) [Fintype n] [DecidableEq n] [Nonempty n]
+    [CommSemiring R] [Semiring α] [Algebra R α] : Function.Injective (scalarAlgHom n R (α := α)) :=
+  Matrix.scalar_injective
+
+lemma Algebra.IsCentral.of_matrix {n D : Type*} [DivisionRing D] [Algebra K D] [Nonempty n]
+    [Fintype n] [DecidableEq n] (h : Algebra.IsCentral K (Matrix n n D)) :
+    Algebra.IsCentral K D := by
+  refine ⟨le_of_eq ?_⟩
+  have := Matrix.subalgebraCenter_eq_scalarAlgHom_map (n := n) (R := K) (A := D)
+  rw [center_eq_bot] at this
+  apply Subalgebra.map_injective (Matrix.scalarAlgHom_injective n K D)
+  simp [← this]
+
+@[stacks 074C]
+instance TensorProduct.simple
+    (A B : Type v) [Ring A] [Algebra K A] [Ring B] [Algebra K B]
+    [isSimple_A : IsSimpleRing A] [FiniteDimensional K B]
+    [isCentral_B : Algebra.IsCentral K B]
+    [isSimple_B : IsSimpleRing B] : IsSimpleRing (A ⊗[K] B) := by
+  haveI : IsArtinianRing B := IsArtinianRing.of_finite K B
+  obtain ⟨n, _, D, _, _, _, ⟨e⟩⟩ := IsSimpleRing.exists_algEquiv_matrix_divisionRing_finite K B
+  haveI := Algebra.IsCentral.of_matrix K <| Algebra.IsCentral.of_algEquiv K _ _ e
+  replace e : A ⊗[K] B ≃ₐ[K] Matrix (Fin n) (Fin n) (D ⊗[K] A) :=
+    (Algebra.TensorProduct.comm K A B).trans <| (Algebra.TensorProduct.congr (e.trans
+      (matrixEquivTensor (Fin n) K D)|>.trans <| Algebra.TensorProduct.comm K D _)
+      (@AlgEquiv.refl K A ..)).trans <| (Algebra.TensorProduct.assoc K K _ _ _).trans <|
+    (Algebra.TensorProduct.comm K _ _).trans <| (matrixEquivTensor (Fin n) _ _).symm
+  refine IsSimpleRing.of_ringEquiv e.toRingEquiv.symm <| @IsSimpleRing.matrix _ _ _ _ _ ?_
+  exact TensorProduct.simple' K
+
 lemma TensorProduct.map_comap_eq_of_isSimple_isCentralSimple
     {A B : Type v} [Ring A] [Algebra K A] [Ring B] [Algebra K B]
     [isSimple_A : IsSimpleOrder <| TwoSidedIdeal A]
@@ -379,13 +475,8 @@ lemma TensorProduct.map_comap_eq_of_isSimple_isCentralSimple
     rw [SetLike.mem_coe, TwoSidedIdeal.mem_comap] at hx
     exact hx
 
-lemma TwoSidedIdeal.span_eq_bot_iff {R : Type*} [NonUnitalNonAssocRing R] (s : Set R) :
-    TwoSidedIdeal.span s = ⊥ ↔ ∀ x ∈ s, x = 0 :=
-  eq_bot_iff.trans ⟨fun H _ h ↦ (mem_bot R).1 <| H <| subset_span h, fun H ↦
-    span_le.2 fun x h ↦ (mem_bot R).2 <| H x h⟩
-
 @[stacks 074C]
-instance TensorProduct.simple
+instance TensorProduct.simple_more_general
     (A B : Type v) [Ring A] [Algebra K A] [Ring B] [Algebra K B]
     [isSimple_A : IsSimpleRing A]
     [isCentral_B : Algebra.IsCentral K B]
@@ -398,7 +489,7 @@ instance TensorProduct.simple
     specialize eq1 I
     rcases isSimple_A.1.2 (I.comap f) with h|h
     · left
-      rw [eq1, TwoSidedIdeal.span_eq_bot_iff, h]
+      rw [eq1, TwoSidedIdeal.span_eq_bot, h]
       simp
     · right
       rw [← TwoSidedIdeal.one_mem_iff, eq1, h]
