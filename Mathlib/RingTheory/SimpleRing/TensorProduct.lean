@@ -161,14 +161,14 @@ lemma TensorProduct.map_comap_eq [IsSimpleRing A] [Algebra.IsCentral K A]
       refine Quotient.inductionOn' x fun b ↦ ⟨fun hb ↦ ?_, fun hb ↦ by simp [hb]⟩
       rw [Submodule.Quotient.mk''_eq_mk, Submodule.Quotient.mk_eq_zero]
       change _ ∈ (_ : Set (A ⊗[K] _)) at hb
-      rw [I.coe_map_of_surjective _ this] at hb 
-      obtain ⟨ab, ha1, ha2⟩ := hb 
+      rw [I.coe_map_of_surjective _ this] at hb
+      obtain ⟨ab, ha1, ha2⟩ := hb
       induction ab using TensorProduct.induction_on with
-      | zero => 
+      | zero =>
         simp only [map_zero] at ha2
         rw [eq_comm, FaithfullyFlat.one_tmul_eq_zero_iff K (B ⧸ J) (Quotient.mk'' b)] at ha2
         rw [← Submodule.Quotient.mk_eq_zero, ← Submodule.Quotient.mk''_eq_mk, ha2]
-      | tmul x y => 
+      | tmul x y =>
         simp at ha2
         sorry
       | add x y _ _ => sorry
