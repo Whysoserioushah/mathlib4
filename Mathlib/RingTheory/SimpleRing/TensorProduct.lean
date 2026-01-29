@@ -131,19 +131,15 @@ lemma TwoSidedIdeal.eq_bot_of_map_comap_eq_bot [hA : IsSimpleRing A]
   simp +contextual only [↓reduceDIte] at main
   simp [main]
 
-#check Function.injective_iff_hasLeftInverse
-#check Function.HasLeftInverse
-#check Function.surjective_iff_hasRightInverse
-#check Ideal.apply_mem_of_equiv_iff
-#check TensorProduct.flip_mk_surjective
 open TwoSidedIdeal in
 lemma TensorProduct.map_comap_eq [IsSimpleRing A] [Algebra.IsCentral K A]
     (I : TwoSidedIdeal (A ⊗[K] B)) :
     letI f : B →ₐ[K] A ⊗[K] B := Algebra.TensorProduct.includeRight
     (I.comap f).map f = I := by
   let f : B →ₐ[K] A ⊗[K] B := Algebra.TensorProduct.includeRight
-  have : Function.Surjective (Algebra.TensorProduct.map (AlgHom.id K A)
-      (Ideal.Quotient.mkₐ K (TwoSidedIdeal.asIdeal ((TwoSidedIdeal.comap f) I)))) :=
+  set J := (I.comap f).asIdeal with hJ_def
+  let g := Algebra.TensorProduct.lTensor (S := K) A (Ideal.Quotient.mkₐ K J)
+  have : Function.Surjective g :=
       TensorProduct.map_surjective Function.surjective_id Ideal.Quotient.mk_surjective
   refine le_antisymm ?_ ?_
   · rw [TwoSidedIdeal.map, TwoSidedIdeal.span_le]
@@ -151,10 +147,13 @@ lemma TensorProduct.map_comap_eq [IsSimpleRing A] [Algebra.IsCentral K A]
     rw [SetLike.mem_coe, TwoSidedIdeal.mem_comap] at hx
     exact hx
   refine (eq_or_ne I ⊥).casesOn (fun h ↦ h ▸ bot_le) <| fun h ↦ ?_
-  set J := (I.comap f).asIdeal with hJ_def
+  have h1 : RingHom.ker g ≤ I.asIdeal := by
+    rw [Algebra.TensorProduct.lTensor_ker _ (Ideal.Quotient.mkₐ_surjective _ _),
+      Ideal.map_le_iff_le_comap]
+    change RingHom.ker (Ideal.Quotient.mk J) ≤ _
+    simp [J, f]
   have eq1 : ((TwoSidedIdeal.comap Algebra.TensorProduct.includeRight)
-    (TwoSidedIdeal.map (Algebra.TensorProduct.lTensor (S := K) A
-      (Ideal.Quotient.mkₐ K J)) I)) = ⊥ := by
+    (TwoSidedIdeal.map g I)) = ⊥ := by
       ext x
       simp only [TwoSidedIdeal.mem_comap, Algebra.TensorProduct.includeRight_apply,
         TwoSidedIdeal.mem_bot]
@@ -163,15 +162,11 @@ lemma TensorProduct.map_comap_eq [IsSimpleRing A] [Algebra.IsCentral K A]
       change _ ∈ (_ : Set (A ⊗[K] _)) at hb
       rw [I.coe_map_of_surjective _ this] at hb
       obtain ⟨ab, ha1, ha2⟩ := hb
-      induction ab using TensorProduct.induction_on with
-      | zero =>
-        simp only [map_zero] at ha2
-        rw [eq_comm, FaithfullyFlat.one_tmul_eq_zero_iff K (B ⧸ J) (Quotient.mk'' b)] at ha2
-        rw [← Submodule.Quotient.mk_eq_zero, ← Submodule.Quotient.mk''_eq_mk, ha2]
-      | tmul x y =>
-        simp at ha2
-        sorry
-      | add x y _ _ => sorry
+      simp only [SetLike.mem_coe] at ha1
+      change g _ = g (1 ⊗ₜ b) at ha2
+      rw [← sub_eq_zero, ← map_sub] at ha2
+      have := I.asIdeal.sub_mem ha1 (h1 ha2)
+      exact (mem_comap f).mpr <| by simpa using this
   have := eq_bot_of_map_comap_eq_bot K A (B ⧸ (I.comap f).asIdeal)
       (I.map (Algebra.TensorProduct.lTensor (S := K) A (Ideal.Quotient.mkₐ _ _)))
       (by rw [eq1, TwoSidedIdeal.map_bot])

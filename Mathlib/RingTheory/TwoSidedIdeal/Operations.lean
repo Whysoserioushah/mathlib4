@@ -516,6 +516,13 @@ lemma map_le_twoSided' {S F : Type*} [FunLike F R S] [Ring S] {f : F}
   conv_lhs => enter [2]; rw [← I.asIdeal_toTwoSided]
   exact Ideal.map_le_twoSided _
 
+@[simp]
+lemma asIdeal_comap {S F : Type*} [FunLike F R S] [Ring S] {f : F}
+    [RingHomClass F R S] (I : TwoSidedIdeal S) :
+    (I.comap f).asIdeal = I.asIdeal.comap f := by
+  ext
+  simp [TwoSidedIdeal.mem_comap]
+
 instance : CanLift (Ideal R) (TwoSidedIdeal R) TwoSidedIdeal.asIdeal (·.IsTwoSided) where
   prf I _ := ⟨I.toTwoSided, asIdeal_toTwoSided ..⟩
 
