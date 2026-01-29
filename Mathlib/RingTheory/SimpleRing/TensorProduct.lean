@@ -131,8 +131,13 @@ lemma TwoSidedIdeal.eq_bot_of_map_comap_eq_bot [hA : IsSimpleRing A]
   simp +contextual only [↓reduceDIte] at main
   simp [main]
 
+#check Function.injective_iff_hasLeftInverse
+#check Function.HasLeftInverse
+#check Function.surjective_iff_hasRightInverse
+#check Ideal.apply_mem_of_equiv_iff
+#check TensorProduct.flip_mk_surjective
 open TwoSidedIdeal in
-lemma TensorProduct.map_comap_eq [IsSimpleRing A] [Algebra.IsCentral K A] [hB : IsSimpleRing B]
+lemma TensorProduct.map_comap_eq [IsSimpleRing A] [Algebra.IsCentral K A]
     (I : TwoSidedIdeal (A ⊗[K] B)) :
     letI f : B →ₐ[K] A ⊗[K] B := Algebra.TensorProduct.includeRight
     (I.comap f).map f = I := by
@@ -155,16 +160,18 @@ lemma TensorProduct.map_comap_eq [IsSimpleRing A] [Algebra.IsCentral K A] [hB : 
         TwoSidedIdeal.mem_bot]
       refine Quotient.inductionOn' x fun b ↦ ⟨fun hb ↦ ?_, fun hb ↦ by simp [hb]⟩
       rw [Submodule.Quotient.mk''_eq_mk, Submodule.Quotient.mk_eq_zero]
-      rcases hB.1.2 (I.comap f) with hcomap | hcomap
-      · have hJ : J = ⊥ := by simp [hJ_def, hcomap]
-        rw [hJ, Submodule.mem_bot]
-        suffices h' : (1 : A) ⊗ₜ[K] b ∈ I from mem_bot _ |>.1 <| hcomap ▸ (mem_comap f).2 h'
-        rw [← I.map_of_equiv (Algebra.TensorProduct.congr (AlgEquiv.refl (R := K) (A₁ := A)) <|
-            (Ideal.quotientEquivAlgOfEq K hJ).trans (AlgEquiv.quotientBot K B)).toRingEquiv.symm]
-        exact TwoSidedIdeal.mem_map_of_mem hb
-      · have hJ : J = ⊤ := by simp [hJ_def, hcomap, TwoSidedIdeal.top_asIdeal]
-        rw [hJ]
-        exact Submodule.mem_top
+      change _ ∈ (_ : Set (A ⊗[K] _)) at hb
+      rw [I.coe_map_of_surjective _ this] at hb 
+      obtain ⟨ab, ha1, ha2⟩ := hb 
+      induction ab using TensorProduct.induction_on with
+      | zero => 
+        simp only [map_zero] at ha2
+        rw [eq_comm, FaithfullyFlat.one_tmul_eq_zero_iff K (B ⧸ J) (Quotient.mk'' b)] at ha2
+        rw [← Submodule.Quotient.mk_eq_zero, ← Submodule.Quotient.mk''_eq_mk, ha2]
+      | tmul x y => 
+        simp at ha2
+        sorry
+      | add x y _ _ => sorry
   have := eq_bot_of_map_comap_eq_bot K A (B ⧸ (I.comap f).asIdeal)
       (I.map (Algebra.TensorProduct.lTensor (S := K) A (Ideal.Quotient.mkₐ _ _)))
       (by rw [eq1, TwoSidedIdeal.map_bot])
