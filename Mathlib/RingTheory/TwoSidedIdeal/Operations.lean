@@ -504,12 +504,11 @@ lemma span_le_twoSided (s : Set R) :
   simp only [mem_span, TwoSidedIdeal.mem_asIdeal, TwoSidedIdeal.mem_span_iff] at hx ⊢
   exact fun I hI ↦ by simpa using hx I.asIdeal (by simpa using hI)
 
-lemma map_le_twoSided {S F : Type*} [FunLike F R S] [Ring S] {f : F}
-    [RingHomClass F R S] (I : TwoSidedIdeal R) :
+lemma map_le_twoSided {S F : Type*} [FunLike F R S] [Ring S] {f : F} (I : TwoSidedIdeal R) :
     I.asIdeal.map f ≤ (I.map f).asIdeal := span_le_twoSided _
 
 lemma map_le_twoSided' {S F : Type*} [FunLike F R S] [Ring S] {f : F}
-    [RingHomClass F R S] (I : Ideal R) [I.IsTwoSided] [(I.map f).IsTwoSided] :
+    (I : Ideal R) [I.IsTwoSided] [(I.map f).IsTwoSided] :
     (I.map f).toTwoSided ≤ I.toTwoSided.map f := by
   change (map f I).toTwoSided.asIdeal ≤ (I.toTwoSided.map f).asIdeal
   rw [asIdeal_toTwoSided]
