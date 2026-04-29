@@ -69,7 +69,6 @@ lemma ofTensorProduct_tmul (r : AdicCompletion I R) (x : M) :
     ofTensorProduct I M (r ⊗ₜ x) = r • of I M x := by
   rfl
 
-set_option backward.isDefEq.respectTransparency false in
 variable {M} in
 /-- `ofTensorProduct` is functorial in `M`. -/
 lemma ofTensorProduct_naturality (f : M →ₗ[R] N) :
@@ -90,16 +89,16 @@ section DecidableEq
 
 variable [Fintype ι] [DecidableEq ι]
 
-set_option backward.isDefEq.respectTransparency false in
 private lemma piEquivOfFintype_comp_ofTensorProduct_eq :
-    piEquivOfFintype I (fun _ : ι ↦ R) ∘ₗ ofTensorProduct I (ι → R) =
+    (piEquivOfFintype I (fun _ : ι ↦ R)).toLinearMap ∘ₗ ofTensorProduct I (ι → R) =
       (TensorProduct.piScalarRight R (AdicCompletion I R) (AdicCompletion I R) ι).toLinearMap := by
   ext i j k
   suffices h : (if j = i then 1 else 0) = (if j = i then 1 else 0 : AdicCompletion I R).val k by
-    simpa [Pi.single_apply, -smul_eq_mul]
+    convert_to _ = ((piScalarRightHom R (AdicCompletion I R) (AdicCompletion I R) ι)
+      (1 ⊗ₜ[R] Pi.single i 1) j).1 k
+    simp [LinearMap.reduceModIdeal, Pi.single_apply, h]
   split <;> simp
 
-set_option backward.isDefEq.respectTransparency false in
 private lemma ofTensorProduct_eq :
     ofTensorProduct I (ι → R) = (piEquivOfFintype I (ι := ι) (fun _ : ι ↦ R)).symm.toLinearMap ∘ₗ
       (TensorProduct.piScalarRight R (AdicCompletion I R) (AdicCompletion I R) ι).toLinearMap := by
@@ -114,12 +113,11 @@ def ofTensorProductInvOfPiFintype :
   letI g := (TensorProduct.piScalarRight R (AdicCompletion I R) (AdicCompletion I R) ι).symm
   f.trans g
 
-set_option backward.isDefEq.respectTransparency false in
 lemma ofTensorProductInvOfPiFintype_comp_ofTensorProduct :
     ofTensorProductInvOfPiFintype I ι ∘ₗ ofTensorProduct I (ι → R) = LinearMap.id := by
-  dsimp only [ofTensorProductInvOfPiFintype]
+  dsimp [ofTensorProductInvOfPiFintype]
   rw [LinearEquiv.coe_trans, LinearMap.comp_assoc, piEquivOfFintype_comp_ofTensorProduct_eq]
-  simp
+  exact LinearEquiv.symm_comp _
 
 set_option backward.isDefEq.respectTransparency false in
 lemma ofTensorProduct_comp_ofTensorProductInvOfPiFintype :
