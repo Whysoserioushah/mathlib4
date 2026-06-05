@@ -35,10 +35,11 @@ continuous representation, algebra
 
 @[expose] public section
 
-variable (R G V W U : Type*) [Monoid G] [Ring R] [AddCommGroup V] [TopologicalSpace V]
+variable (R G V W U X : Type*) [Monoid G] [Ring R] [AddCommGroup V] [TopologicalSpace V]
   [IsTopologicalAddGroup V] [Module R V] [AddCommGroup W] [TopologicalSpace W]
   [IsTopologicalAddGroup W] [Module R W] [AddCommGroup U] [Module R U] [TopologicalSpace U]
-  [IsTopologicalAddGroup U]
+  [IsTopologicalAddGroup U] [AddCommGroup X] [Module R X] [TopologicalSpace X]
+  [IsTopologicalAddGroup X]
 
 /-- A continuous representation of a group `G` on a `R`-module `V` which is a topological addgroup
   is a homomorphism `G →* V →L[R] V`. -/
@@ -66,6 +67,7 @@ namespace ContIntertwiningMap
 open ContRepresentation
 
 variable {π₁ : ContRepresentation R G V} {π₂ : ContRepresentation R G W}
+  {π₃ : ContRepresentation R G U} {π₄ : ContRepresentation R G X}
 
 /-- Any continuous intertwining map is an intertwining map. -/
 abbrev toIntertwiningMap (f : π₁ →ⁱL π₂) :
@@ -79,40 +81,149 @@ def id : π₁ →ⁱL π₁ where
   isIntertwining' g := by simp
 
 @[ext]
-lemma ext {π₁ : ContRepresentation R G V} {π₂ : ContRepresentation R G W}
-    {f g : π₁ →ⁱL π₂} (h : f.toContinuousLinearMap = g.toContinuousLinearMap) : f = g := by
+lemma ext {f g : π₁ →ⁱL π₂} (h : f.toContinuousLinearMap = g.toContinuousLinearMap) : f = g := by
   cases f; cases g; congr
 
-lemma toIntertwiningMap_injective {π₁ : ContRepresentation R G V}
-    {π₂ : ContRepresentation R G W} :
+lemma toIntertwiningMap_injective :
     Function.Injective fun f : π₁ →ⁱL π₂ ↦ f.toContinuousLinearMap :=
   fun _ _ ↦ ext
 
-lemma toFun_injective {π₁ : ContRepresentation R G V} {π₂ : ContRepresentation R G W} :
-    Function.Injective fun f : π₁ →ⁱL π₂ ↦ f.toFun := fun f g h ↦ by
+lemma toFun_injective : Function.Injective fun f : π₁ →ⁱL π₂ ↦ f.toFun := fun f g h ↦ by
   ext x; exact congr_fun h x
 
-instance {π₁ : ContRepresentation R G V} {π₂ : ContRepresentation R G W} :
-    FunLike (π₁ →ⁱL π₂) V W where
+instance : FunLike (π₁ →ⁱL π₂) V W where
   coe f := f.toFun
   coe_injective' := toFun_injective
 
-lemma isIntertwining {π₁ : ContRepresentation R G V} {π₂ : ContRepresentation R G W}
-    (f : π₁ →ⁱL π₂) (g : G) (v : V) : f (π₁ g v) = π₂ g (f v) :=
+lemma isIntertwining (f : π₁ →ⁱL π₂) (g : G) (v : V) : f (π₁ g v) = π₂ g (f v) :=
   f.toIntertwiningMap.isIntertwining _ _ g v
 
-instance {π₁ : ContRepresentation R G V} {π₂ : ContRepresentation R G W} :
-    ContinuousLinearMapClass (π₁ →ⁱL π₂) R V W where
+instance : ContinuousLinearMapClass (π₁ →ⁱL π₂) R V W where
   map_add f := f.map_add
   map_smulₛₗ f := f.map_smul
   map_continuous f := f.cont
 
 open ContinuousLinearMap in
 /-- The composition of two continuous intertwining maps is a continuous intertwining map. -/
-def comp {π₁ : ContRepresentation R G V} {π₂ : ContRepresentation R G W}
-    {π₃ : ContRepresentation R G U} (f : π₂ →ⁱL π₃) (g : π₁ →ⁱL π₂) : π₁ →ⁱL π₃ where
+def comp (f : π₂ →ⁱL π₃) (g : π₁ →ⁱL π₂) : π₁ →ⁱL π₃ where
   __ := f.toContinuousLinearMap.comp g.toContinuousLinearMap
   isIntertwining' h := by rw [comp_assoc, g.2, ← comp_assoc, f.2, comp_assoc]
+
+infixr:80 " ∘ⁱL " => ContIntertwiningMap.comp
+
+@[simp]
+lemma comp_toContinuousLinearMap (f : π₂ →ⁱL π₃) (g : π₁ →ⁱL π₂) :
+    (f ∘ⁱL g).toContinuousLinearMap = f.toContinuousLinearMap.comp g.toContinuousLinearMap := rfl
+
+@[simp]
+lemma comp_apply (f : π₂ →ⁱL π₃) (g : π₁ →ⁱL π₂) (v : V) :
+    (f ∘ⁱL g) v = f (g v) := rfl
+
+lemma comp_assoc (f : π₃ →ⁱL π₄) (g : π₂ →ⁱL π₃)
+    (h : π₁ →ⁱL π₂) : f ∘ⁱL (g ∘ⁱL h) = (f ∘ⁱL g) ∘ⁱL h := by
+  ext1; simp [ContinuousLinearMap.comp_assoc]
+
+lemma id_apply (v : V) : (id : π₁ →ⁱL π₁) v = v := rfl
+
+@[simp]
+lemma id_toContinuousLinearMap :
+    (id : π₁ →ⁱL π₁).toContinuousLinearMap = ContinuousLinearMap.id R V := rfl
+
+@[simp] lemma comp_id (f : π₁ →ⁱL π₂) : f ∘ⁱL id = f := by ext; simp
+
+@[simp] lemma id_comp (f : π₁ →ⁱL π₂) : id ∘ⁱL f = f := by ext; simp
+
+instance : Zero (π₁ →ⁱL π₂) where
+  zero := ⟨0, by simp⟩
+
+@[simp] lemma zero_toContinuousLinearMap : (0 : π₁ →ⁱL π₂).toContinuousLinearMap = 0 := rfl
+
+@[simp] lemma zero_apply (v : V) : (0 : π₁ →ⁱL π₂) v = 0 := rfl
+
+@[simp] lemma zero_comp (f : π₂ →ⁱL π₃) : (0 : π₃ →ⁱL π₄) ∘ⁱL f = 0 := by
+  simp [ContIntertwiningMap.ext_iff, ContIntertwiningMap.comp_toContinuousLinearMap]
+
+@[simp] lemma comp_zero (f : π₂ →ⁱL π₃) : f ∘ⁱL (0 : π₁ →ⁱL π₂) = 0 := by
+  simp [ContIntertwiningMap.ext_iff, ContIntertwiningMap.comp_toContinuousLinearMap]
+
+instance : Add (π₁ →ⁱL π₂) where
+  add f g := ⟨f.toContinuousLinearMap + g.toContinuousLinearMap, fun _ ↦ by simp [f.2, g.2]⟩
+
+@[simp]
+lemma add_toContinuousLinearMap (f g : π₁ →ⁱL π₂) :
+    (f + g).toContinuousLinearMap = f.toContinuousLinearMap + g.toContinuousLinearMap := rfl
+
+lemma add_apply (f g : π₁ →ⁱL π₂) (v : V) : (f + g) v = f v + g v := rfl
+
+lemma add_comp (f₁ f₂ : π₂ →ⁱL π₃) (g : π₁ →ⁱL π₂) :
+    (f₁ + f₂) ∘ⁱL g = f₁ ∘ⁱL g + f₂ ∘ⁱL g := by ext; simp [ContinuousLinearMap.add_comp]
+
+lemma comp_add (f : π₂ →ⁱL π₃) (g₁ g₂ : π₁ →ⁱL π₂) :
+    f ∘ⁱL (g₁ + g₂) = f ∘ⁱL g₁ + f ∘ⁱL g₂ := by ext; simp [ContinuousLinearMap.comp_add]
+
+lemma add_assoc' (f g h : π₁ →ⁱL π₂) : (f + g) + h = f + (g + h) := by ext; simp [add_assoc]
+
+lemma add_comm' (f g : π₁ →ⁱL π₂) : f + g = g + f := by ext; simp [add_comm]
+
+lemma zero_add' (f : π₁ →ⁱL π₂) : 0 + f = f := by ext; simp [zero_apply]
+
+lemma add_zero' (f : π₁ →ⁱL π₂) : f + 0 = f := by ext; simp [zero_apply]
+
+instance : Neg (π₁ →ⁱL π₂) where
+  neg f := ⟨-f.toContinuousLinearMap, by simp [f.2]⟩
+
+@[simp]
+lemma neg_toContinuousLinearMap (f : π₁ →ⁱL π₂) :
+    (-f).toContinuousLinearMap = -f.toContinuousLinearMap := rfl
+
+lemma neg_apply (f : π₁ →ⁱL π₂) (v : V) : (-f) v = -f v := rfl
+
+lemma neg_comp (f : π₂ →ⁱL π₃) (g : π₁ →ⁱL π₂) : (-f) ∘ⁱL g = -(f ∘ⁱL g) := by
+  ext; simp [ContinuousLinearMap.neg_comp]
+
+lemma comp_neg (f : π₂ →ⁱL π₃) (g : π₁ →ⁱL π₂) : f ∘ⁱL (-g) = -(f ∘ⁱL g) := by
+  ext; simp [ContinuousLinearMap.comp_neg]
+
+lemma add_neg_cancel' (f : π₁ →ⁱL π₂) : f + (-f) = 0 := by ext; simp
+
+lemma neg_add_cancel' (f : π₁ →ⁱL π₂) : (-f) + f = 0 := by ext; simp
+
+section smul
+
+variable {S : Type*} [Monoid S] [DistribMulAction S W] [SMulCommClass R S W]
+    [LinearMap.CompatibleSMul W W S R] [ContinuousConstSMul S W]
+
+instance : SMul S (π₁ →ⁱL π₂) where
+  smul s f := ⟨s • f.toContinuousLinearMap, fun _ ↦ by
+    rw [ContinuousLinearMap.smul_comp, ContinuousLinearMap.comp_smul, f.2]⟩
+
+@[simp]
+lemma smul_toContinuousLinearMap (s : S) (f : π₁ →ⁱL π₂) :
+    (s • f).toContinuousLinearMap = s • f.toContinuousLinearMap := rfl
+
+lemma smul_apply (s : S) (f : π₁ →ⁱL π₂) (v : V) : (s • f) v = s • f v := rfl
+
+@[simp] lemma smul_zero (s : S) : s • (0 : π₁ →ⁱL π₂) = 0 := by ext; simp
+
+instance : MulAction S (π₁ →ⁱL π₂) where
+  mul_smul _ _ _ := by ext; simp [SemigroupAction.mul_smul]
+  one_smul _     := by ext; simp
+
+end smul
+
+instance : AddCommGroup (π₁ →ⁱL π₂) where
+  add_assoc := add_assoc'
+  zero_add := zero_add'
+  add_zero := add_zero'
+  add_comm := add_comm'
+  nsmul := (· • ·)
+  nsmul_zero _ := by ext; simp
+  nsmul_succ _ _ := by ext; simp [add_smul]
+  zsmul := (· • ·)
+  zsmul_zero' _ := by ext; simp
+  zsmul_succ' _ _ := by ext; simp [add_smul]
+  zsmul_neg' _ _ := by ext; simp [add_smul]
+  neg_add_cancel := neg_add_cancel'
 
 end ContIntertwiningMap
 
@@ -130,10 +241,11 @@ add_decl_doc Equiv.toContinuousLinearEquiv
 /-- The continuous intertwining map underlying an equivalence of continuous representations. -/
 add_decl_doc Equiv.toContIntertwiningMap
 
+variable {ρ : ContRepresentation R G V} {σ : ContRepresentation R G W}
+  {τ : ContRepresentation R G U}
 namespace Equiv
 
-variable {ρ : ContRepresentation R G V} {σ : ContRepresentation R G W}
-  {τ : ContRepresentation R G U} (φ : Equiv ρ σ)
+variable (φ : Equiv ρ σ)
 
 lemma isIntertwining (g : G) :
     φ.toContinuousLinearEquiv.toContinuousLinearMap ∘L (ρ g) =
@@ -274,6 +386,8 @@ def trivial : ContRepresentation R G V := 1
 @[simp]
 lemma trivial_apply (g : G) (v : V) : trivial R G V g v = v := rfl
 
+
+
 /-- The restriction of a continuous representation along a monoid homomorphism. -/
 @[simps!]
 def restrict {H : Type*} [Monoid H] (π : ContRepresentation R G V) (φ : H →* G) :
@@ -336,7 +450,7 @@ def coind₁ (π : ContRepresentation R G V) :
 
 /-- The functoriality of `coind₁`. -/
 @[simps]
-def coind₁_map (π₁ : ContRepresentation R G V) (π₂ : ContRepresentation R G W) (f : π₁ →ⁱL π₂) :
+def _root_.ContIntertwiningMap.coind₁_map {π₁ : ContRepresentation R G V} {π₂ : ContRepresentation R G W} (f : π₁ →ⁱL π₂) :
     coind₁ π₁ →ⁱL coind₁ π₂ where
   toFun := (f : ContinuousMap _ _).comp
   map_add' _ _ := by ext; simp

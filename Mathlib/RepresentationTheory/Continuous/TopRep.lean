@@ -128,6 +128,9 @@ variable {A B} in
 lemma hom_comm_apply (f : A ⟶ B) (g : G) (a : A) : f.hom (A.ρ g a) = B.ρ g (f.hom a) := by
   simpa using! congr($(f.hom.2 g) a)
 
+instance : Zero (A ⟶ B) where
+  zero := ofHom 0
+
 section equivAction
 
 /-- The functor sending a topological representation to the corresponding object in
@@ -169,4 +172,15 @@ instance : (fromActionTopModFunc (k := k) (G := G)).IsEquivalence  :=
 
 end equivAction
 
+section coind₁
+variable {G : Type v} [TopologicalSpace G] [Group G] [IsTopologicalGroup G]
+
+/-- The `G` representation `C(G, rep)` given a representation `rep`.
+The `G` action is defined by `g • f := x ↦ g • f (g⁻¹ * x)`. -/
+@[implicit_reducible, simps]
+def coind₁ : TopRep.{w} k G ⥤ TopRep k G where
+  obj rep := of rep.ρ.coind₁
+  map f := ofHom f.hom.coind₁_map
+
+end coind₁
 end TopRep
