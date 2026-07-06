@@ -32,6 +32,12 @@ group cohomology.
   resolutions, as a morphism `(resolution' (of ρ1)).X m ⟶ iHom ((resolution' (of ρ2)).X n)
   ((resolution' (of ρ3)).X (m + n))`.
 
+## Main results
+
+* `ContRepresentation.cupPair_d_comm` and `ContRepresentation.cup_d_comm`: the Leibniz rule
+  `d (σ ∪ τ) = (d σ) ∪ τ + (-1) ^ m • (σ ∪ d τ)` for the cup product, on the resolutions and on
+  homogeneous cochains respectively.
+
 ## TODO
 
 * Use `ContRepresentation.cupComplex` to define the cup product `ContRepresentation.cup` on
@@ -333,8 +339,120 @@ def cupComplex (m n r : ℕ) (hr : r = m + n) :
       _ ⟶ ((TopRep.of ρ2).resolution'.X n).iHom (TopRep.resolutionX (.of ρ3) (n + 1 + m))) ≫
     eqToHom (by subst hr; rw [show n + 1 + m = m + n + 1 from by omega])
 
-set_option allowUnsafeReducibility true in
-attribute [local reducible] CategoryTheory.Functor.mapHomologicalComplex
+/-- Transport between two levels of the standard resolution along an equality of indices, as a
+continuous linear map. -/
+def resolutionXCast (X : TopRep k G) {i j : ℕ} (h : i = j) :
+    ↥(resolutionX X i) →L[k] ↥(resolutionX X j) :=
+  h ▸ ContinuousLinearMap.id k ↥(resolutionX X i)
+
+lemma resolutionXCast_apply (X : TopRep k G) {i j : ℕ} (h : i + 1 = j + 1)
+    (F : ↥(resolutionX X (i + 1))) (x : G) :
+    resolutionXCast X h F x = resolutionXCast X (by omega : i = j) (F x) := by
+  obtain rfl : i = j := by omega
+  rfl
+
+lemma resolutionXCast_trans (X : TopRep k G) {i j l : ℕ} (h1 : i = j) (h2 : j = l)
+    (y : ↥(resolutionX X i)) :
+    resolutionXCast X h2 (resolutionXCast X h1 y) = resolutionXCast X (h1.trans h2) y := by
+  subst h1; subst h2; rfl
+
+lemma d_hom_resolutionXCast (X : TopRep k G) {i j : ℕ} (h : i = j) (y : ↥(resolutionX X i)) :
+    (d X j).hom (resolutionXCast X h y) =
+      resolutionXCast X (by omega : i + 1 = j + 1) ((d X i).hom y) := by
+  subst h; rfl
+
+/-- The zeroth differential of the standard resolution is the constant-function embedding. -/
+lemma d_hom_zero (X : TopRep k G) (v : ↥X) :
+    (d X 0).hom v = ContinuousMap.const G v := rfl
+
+/-- The pointwise formula for the differentials of the standard resolution. -/
+lemma d_hom_succ_apply (X : TopRep k G) (i : ℕ) (F : ↥(resolutionX X (i + 1))) (x : G) :
+    (d X (i + 1)).hom F x = F - (d X i).hom (F x) := rfl
+
+/-- The differentials of the standard resolutions are compatible with the functorial extension
+`resolutionCLM` of a continuous linear map. -/
+lemma resolutionCLM_comp_d (u : M2 →L[k] M3) (i : ℕ) (y : ↥(resolutionX (of ρ2) i)) :
+    (d (of ρ3) i).hom (resolutionCLM ρ2 ρ3 u i y) =
+      resolutionCLM ρ2 ρ3 u (i + 1) ((d (of ρ2) i).hom y) := by
+  induction i with
+  | zero => rfl
+  | succ i ih =>
+    ext x : 1
+    calc (d (of ρ3) (i + 1)).hom (resolutionCLM ρ2 ρ3 u (i + 1) y) x
+        = resolutionCLM ρ2 ρ3 u (i + 1) y -
+            (d (of ρ3) i).hom (resolutionCLM ρ2 ρ3 u i (y x)) := by
+          rw [d_hom_succ_apply, resolutionCLM_succ_apply]
+      _ = resolutionCLM ρ2 ρ3 u (i + 1) y -
+            resolutionCLM ρ2 ρ3 u (i + 1) ((d (of ρ2) i).hom (y x)) := by rw [ih]
+      _ = resolutionCLM ρ2 ρ3 u (i + 1) (y - (d (of ρ2) i).hom (y x)) := (map_sub _ _ _).symm
+      _ = resolutionCLM ρ2 ρ3 u (i + 1 + 1) ((d (of ρ2) (i + 1)).hom y) x := by
+          rw [resolutionCLM_succ_apply, d_hom_succ_apply, map_sub]
+
+section
+
+variable {ρ1 ρ2 ρ3}
+
+@[simp]
+lemma cupPair_zero (n : ℕ) : (cupPair f n 0).1 = cupZeroSucc f n := rfl
+
+@[simp]
+lemma cupPair_succ_apply (n m : ℕ) (σ : ↥(resolutionX (of ρ1) (m + 1 + 1)))
+    (τ : ↥(resolutionX (of ρ2) (n + 1))) (x : G) :
+    (cupPair f n (m + 1)).1 σ τ x = (cupPair f n m).1 (σ x) τ := rfl
+
+/-- Cupping with a constant `0`-cochain acts through the functorial extension of `f v`. -/
+lemma cupZeroSucc_const_apply (n : ℕ) (v : M1) (τ : ↥(resolutionX (of ρ2) (n + 1))) :
+    cupZeroSucc f n (ContinuousMap.const G v) τ = resolutionCLM ρ2 ρ3 (f v) (n + 1) τ := rfl
+
+/-- The Leibniz rule for the cup product pairing on the levels of the standard resolutions:
+`d (σ ∪ τ) = (d σ) ∪ τ + (-1) ^ m • (σ ∪ d τ)`. -/
+lemma cupPair_d_comm (n m : ℕ) (σ : ↥(resolutionX (of ρ1) (m + 1)))
+    (τ : ↥(resolutionX (of ρ2) (n + 1))) :
+    (d (of ρ3) (n + 1 + m)).hom ((cupPair f n m).1 σ τ) =
+      (cupPair f n (m + 1)).1 ((d (of ρ1) (m + 1)).hom σ) τ +
+        (-1 : ℤ) ^ m • resolutionXCast (.of ρ3) (by omega : n + 1 + 1 + m = n + 1 + m + 1)
+          ((cupPair f (n + 1) m).1 σ ((d (of ρ2) (n + 1)).hom τ)) := by
+  induction m with
+  | zero =>
+    ext x : 1
+    change (cupPair f n 0).1 σ τ -
+        (d (of ρ3) n).hom (resolutionCLM ρ2 ρ3 (f (σ x)) n (τ x)) =
+      (cupPair f n 0).1 ((d (of ρ1) 1).hom σ x) τ +
+        (-1 : ℤ) ^ 0 • (resolutionXCast (.of ρ3) (by omega : n + 1 + 1 + 0 = n + 1 + 0 + 1)
+          ((cupPair f (n + 1) 0).1 σ ((d (of ρ2) (n + 1)).hom τ))) x
+    have h1 : (d (of ρ1) 1).hom σ x = σ - ContinuousMap.const G (σ x) := by
+      rw [d_hom_succ_apply, d_hom_zero]
+    -- The reindexing cast on the left is along a definitional equality, so it evaluates away.
+    have h2 : (resolutionXCast (.of ρ3) (by omega : n + 1 + 1 + 0 = n + 1 + 0 + 1)
+        ((cupPair f (n + 1) 0).1 σ ((d (of ρ2) (n + 1)).hom τ))) x =
+        resolutionCLM ρ2 ρ3 (f (σ x)) (n + 1) ((d (of ρ2) (n + 1)).hom τ x) := rfl
+    have h3 : (cupPair f n 0).1 (ContinuousMap.const G (σ x)) τ =
+        resolutionCLM ρ2 ρ3 (f (σ x)) (n + 1) τ := by
+      rw [cupPair_zero, cupZeroSucc_const_apply]
+    rw [h1, h2, resolutionCLM_comp_d, map_sub ((cupPair f n 0).1),
+      sub_apply, h3, d_hom_succ_apply, map_sub, pow_zero, one_smul]
+    abel
+  | succ m ih =>
+    ext x : 1
+    change (cupPair f n (m + 1)).1 σ τ -
+        (d (of ρ3) (n + 1 + m)).hom ((cupPair f n m).1 (σ x) τ) =
+      (cupPair f n (m + 1)).1 ((d (of ρ1) (m + 1 + 1)).hom σ x) τ +
+        (-1 : ℤ) ^ (m + 1) • (resolutionXCast (.of ρ3)
+          (by omega : n + 1 + 1 + (m + 1) = n + 1 + (m + 1) + 1)
+          ((cupPair f (n + 1) (m + 1)).1 σ ((d (of ρ2) (n + 1)).hom τ))) x
+    have h1 : (d (of ρ1) (m + 1 + 1)).hom σ x = σ - (d (of ρ1) (m + 1)).hom (σ x) :=
+      d_hom_succ_apply _ _ σ x
+    have h2 : (resolutionXCast (.of ρ3)
+        (by omega : n + 1 + 1 + (m + 1) = n + 1 + (m + 1) + 1)
+        ((cupPair f (n + 1) (m + 1)).1 σ ((d (of ρ2) (n + 1)).hom τ))) x =
+        resolutionXCast (.of ρ3) (by omega : n + 1 + 1 + m = n + 1 + m + 1)
+          ((cupPair f (n + 1) m).1 (σ x) ((d (of ρ2) (n + 1)).hom τ)) :=
+      resolutionXCast_apply _ _ _ x
+    rw [ih, h1, h2, map_sub ((cupPair f n (m + 1)).1), sub_apply,
+      pow_succ, mul_comm, mul_smul, neg_one_smul]
+    abel
+
+end
 
 abbrev invariantsObjIHom (n r : ℕ) : (invariantsFunctor k G).obj
     (((of ρ2).resolution'.X n).iHom ((of ρ3).resolution'.X r)) ⟶
@@ -360,15 +478,99 @@ abbrev invariantsObjIHom (n r : ℕ) : (invariantsFunctor k G).obj
           C(((of ρ2).resolution'.X n).ρ.invariants, (of ρ2).resolution'.X n))).comp
         (hι.comp continuous_subtype_val) }
 
+/-- Applying the `eqToHom` reindexing morphism of `cupComplex` to elements is transport along
+the index equality. -/
+lemma eqToHom_iHom_apply (A : TopRep k G) {i j : ℕ} (h : i = j)
+    (pf : A.iHom (resolutionX (.of ρ3) i) = A.iHom (resolutionX (.of ρ3) j))
+    (Φ : ↥(A.iHom (resolutionX (.of ρ3) i))) (τ : ↥A) :
+    (eqToHom pf) Φ τ = resolutionXCast (.of ρ3) h (Φ τ) := by
+  subst h
+  rfl
+
+variable {ρ1 ρ2 ρ3} in
 abbrev cupCochain (m n r : ℕ) (hr : r = m + n) :
     (homogeneousCochains (.of ρ1)).X m ⟶ TopModuleCat.linHom ((homogeneousCochains (.of ρ2)).X n)
       ((homogeneousCochains (.of ρ3)).X r) :=
   (invariantsFunctor k G).map (cupComplex ρ1 ρ2 ρ3 f m n r hr) ≫
     invariantsObjIHom ρ2 ρ3 n r
 
+set_option allowUnsafeReducibility true in
+attribute [local reducible] CategoryTheory.Functor.mapHomologicalComplex in
+variable {ρ1 ρ2 ρ3} in
+/-- The value of the cup product of two homogeneous cochains, as an element of the resolution. -/
+lemma cupCochain_coe (m n r : ℕ) (hr : r = m + n) (σ : (homogeneousCochains (.of ρ1)).X m)
+    (τ : (homogeneousCochains (.of ρ2)).X n) :
+    (cupCochain f m n r hr σ τ : ↥((of ρ3).resolution'.X r)) =
+      resolutionXCast (.of ρ3) (by omega : n + 1 + m = r + 1)
+        ((cupPair f n m).1 σ.1 τ.1) := by
+  subst hr
+  exact eqToHom_iHom_apply ρ3 ((TopRep.of ρ2).resolution'.X n)
+    (show n + 1 + m = m + n + 1 by omega)
+    (by rw [show n + 1 + m = m + n + 1 from by omega]) ((cupPair f n m).1 σ.1) τ.1
+
+variable {ρ1 ρ2 ρ3} in
+@[simp]
+lemma cupCochain_apply_zero (m n r : ℕ) (hr : r = m + n)
+    (σ : (homogeneousCochains (.of ρ1)).X m) :
+    cupCochain f m n r hr σ 0 = 0 :=
+  map_zero (cupCochain f m n r hr σ : ↥((homogeneousCochains (.of ρ2)).X n) →L[k]
+    ↥((homogeneousCochains (.of ρ3)).X r))
+
+set_option allowUnsafeReducibility true in
+attribute [local reducible] CategoryTheory.Functor.mapHomologicalComplex in
+lemma cup_d_comm (m n r : ℕ) (hr : r = m + n) (σ : (homogeneousCochains (.of ρ1)).X m)
+    (τ : (homogeneousCochains (.of ρ2)).X n) :
+    (homogeneousCochains (.of ρ3)).d r (r + 1) (cupCochain f m n r hr σ τ) =
+    cupCochain f (m + 1) n (r + 1) (by omega) ((homogeneousCochains (.of ρ1)).d m (m + 1) σ) τ +
+    (-1) ^ m • cupCochain f m (n + 1) (r + 1) (by omega) σ
+    ((homogeneousCochains (.of ρ2)).d n (n + 1) τ) := by
+  subst hr
+  refine Subtype.ext ?_
+  rw [homogeneousCochains.d_apply, cupCochain_coe, d_hom_resolutionXCast, cupPair_d_comm,
+    map_add, map_zsmul, resolutionXCast_trans, Submodule.coe_add, Submodule.coe_smul_of_tower,
+    cupCochain_coe, cupCochain_coe, homogeneousCochains.d_apply, homogeneousCochains.d_apply]
+
+set_option allowUnsafeReducibility true in
+attribute [local reducible] CategoryTheory.Functor.mapHomologicalComplex
+
+/-- Applying two consecutive differentials of the homogeneous cochain complex gives zero. -/
+lemma _root_.TopRep.homogeneousCochains.d_comp_d_apply (X : TopRep k G) (i j l : ℕ)
+    (σ : (homogeneousCochains X).X i) :
+    (homogeneousCochains X).d j l ((homogeneousCochains X).d i j σ) = 0 := by
+  simpa using congr($((homogeneousCochains X).d_comp_d i j l) σ)
+
+variable {ρ1 ρ2 ρ3} in
+/-- The cup product with a doubly-applied differential vanishes. -/
+lemma cupCochain_d_comp_d (m i j l r : ℕ) (hr : r = m + l)
+    (σ : (homogeneousCochains (.of ρ1)).X m) (τ : (homogeneousCochains (.of ρ2)).X i) :
+    cupCochain f m l r hr σ
+      ((homogeneousCochains (.of ρ2)).d j l ((homogeneousCochains (.of ρ2)).d i j τ)) = 0 := by
+  rw [homogeneousCochains.d_comp_d_apply]
+  exact map_zero (cupCochain f m l r hr σ : ↥((homogeneousCochains (.of ρ2)).X l) →L[k]
+    ↥((homogeneousCochains (.of ρ3)).X r))
+
+/-- The cup product of two coboundaries is a coboundary: `(d σ) ∪ (d τ) = d (σ ∪ d τ)`. This is
+the special case of the Leibniz rule `cup_d_comm` where the second argument is a coboundary.
+
+Note that `(d σ) ∪ (d τ)` is *not* zero in general: by the Leibniz rule it is the coboundary of
+`σ ∪ d τ`. -/
+lemma d_cup_d (m n r : ℕ) (hr : r = m + n) (σ : (homogeneousCochains (.of ρ1)).X m)
+    (τ : (homogeneousCochains (.of ρ2)).X n) :
+    cupCochain f (m + 1) (n + 1) (r + 2) (by omega) ((homogeneousCochains (.of ρ1)).d m (m + 1) σ)
+      ((homogeneousCochains (.of ρ2)).d n (n + 1) τ) =
+    (homogeneousCochains (.of ρ3)).d (r + 1) (r + 2) (cupCochain f m (n + 1) (r + 1) (by omega) σ
+      ((homogeneousCochains (.of ρ2)).d n (n + 1) τ)) := by
+  subst hr
+  have h := cup_d_comm ρ1 ρ2 ρ3 f m (n + 1) (m + n + 1) (by omega) σ
+    ((homogeneousCochains (.of ρ2)).d n (n + 1) τ)
+  rw [cupCochain_d_comp_d] at h
+  simpa only [smul_zero, add_zero] using h.symm
+
+-- #check HomologicalComplex.cyclesMap
 def cup (m n r : ℕ) (hr : r = m + n) :
-  continuousCohomology m (.of ρ1) →L[k] continuousCohomology n (.of ρ2) →L[k]
-    continuousCohomology r (.of ρ3) := sorry
+  continuousCohomology m (.of ρ1) ⟶ TopModuleCat.linHom (continuousCohomology n (.of ρ2))
+    (continuousCohomology r (.of ρ3)) :=
+  sorry
 
 end Cup
 
