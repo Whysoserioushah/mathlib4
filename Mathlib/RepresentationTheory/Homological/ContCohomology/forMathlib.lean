@@ -6,7 +6,9 @@ Authors: Richard Hill
 import Mathlib.Algebra.Category.ModuleCat.Topology.Basic
 import Mathlib.Algebra.Homology.Homotopy
 import Mathlib.Combinatorics.Quiver.ReflQuiver
-import CtsToDiscrete.continuousCohomology'
+-- import CtsToDiscrete.continuousCohomology'
+import Mathlib.RepresentationTheory.Homological.ContCohomology.Basic
+import Mathlib.RepresentationTheory.Homological.ContCohomology.Functoriality
 import Mathlib.RepresentationTheory.Rep.Basic
 
 /-!
@@ -153,38 +155,39 @@ namespace ContinuousCohomology.MultiInd
 variable (R : Type*) [CommRing R] [TopologicalSpace R] [IsTopologicalRing R]
   (G : Type*) [Group G] [TopologicalSpace G] [IsTopologicalGroup G]
 
-/--
-The isomorphism of functors between `functor R G 0` and the identity functor.
--/
-abbrev functor_zero_iso : functor R G 0 ≅ 𝟭 (TopRep R G) := Iso.refl _
 
-/--
-The isomorphism of functors between `functor R G (n + 1)` and the composition
-`functor R G n ⋙ I R G`.
--/
-abbrev functor_succ_iso (n : ℕ) : functor R G (n + 1) ≅ functor R G n ⋙ coind₁ R G := Iso.refl _
+-- /--
+-- The isomorphism of functors between `functor R G 0` and the identity functor.
+-- -/
+-- abbrev functor_zero_iso : functor R G 0 ≅ 𝟭 (TopRep R G) := Iso.refl _
 
-/--
-This is a version of `ContinuousCohomology.MultiInd.d_zero` which type checks.
--/
-lemma d_zero' : d R G 0 = (functor_zero_iso R G).hom ≫ coind₁ι R G ≫ (leftUnitor (coind₁ R G)).inv
-    ≫ ((functor_zero_iso R G).inv ◫ 𝟙 (coind₁ R G)) ≫ (functor_succ_iso R G 0).inv := rfl
+-- /--
+-- The isomorphism of functors between `functor R G (n + 1)` and the composition
+-- `functor R G n ⋙ I R G`.
+-- -/
+-- abbrev functor_succ_iso (n : ℕ) : functor R G (n + 1) ≅ functor R G n ⋙ coind₁ R G := Iso.refl _
 
-/--
-This is a version of `ContinuousCohomology.MultiInd.d_succ` which type checks.
--/
-lemma d_succ' (n : ℕ) : d R G (n + 1) =
-    (functor_succ_iso R G n).hom
-    ≫ (rightUnitor (functor R G (n + 1))).inv
-    ≫ (𝟙 (functor R G (n + 1)) ◫ coind₁ι R G)
-    ≫ (functor_succ_iso R G (n + 1)).inv
-    - (functor_succ_iso R G n).hom
-    ≫ ((d R G n) ◫ 𝟙 (coind₁ R G))
-    ≫ (functor_succ_iso R G (n + 1)).inv := rfl
+-- /--
+-- This is a version of `ContinuousCohomology.MultiInd.d_zero` which type checks.
+-- -/
+-- lemma d_zero' : d R G 0 = (functor_zero_iso R G).hom ≫ coind₁ι R G ≫ (leftUnitor (coind₁ R G)).inv
+--     ≫ ((functor_zero_iso R G).inv ◫ 𝟙 (coind₁ R G)) ≫ (functor_succ_iso R G 0).inv := rfl
 
-instance (n : ℕ) : (functor R G n).Additive := by
-  induction n <;>
-  · unfold functor; infer_instance
+-- /--
+-- This is a version of `ContinuousCohomology.MultiInd.d_succ` which type checks.
+-- -/
+-- lemma d_succ' (n : ℕ) : d R G (n + 1) =
+--     (functor_succ_iso R G n).hom
+--     ≫ (rightUnitor (functor R G (n + 1))).inv
+--     ≫ (𝟙 (functor R G (n + 1)) ◫ coind₁ι R G)
+--     ≫ (functor_succ_iso R G (n + 1)).inv
+--     - (functor_succ_iso R G n).hom
+--     ≫ ((d R G n) ◫ 𝟙 (coind₁ R G))
+--     ≫ (functor_succ_iso R G (n + 1)).inv := rfl
+
+-- instance (n : ℕ) : (functor R G n).Additive := by
+--   induction n <;>
+--   · unfold functor; infer_instance
 
 
 end ContinuousCohomology.MultiInd
@@ -193,7 +196,7 @@ end ContinuousCohomology.MultiInd
 Construct an isomorphism in the category `ModuleCat R`
 from a Typeland linear equivalence `V ≃ₗ[R] V'`.
 -/
-@[simps] def ModuleCat.Hom.isoOfEquiv {R : Type*} {V V' : Type u} [Ring R] [AddCommGroup V]
+@[simps] def ModuleCat.Hom.isoOfEquiv.{u} {R : Type*} {V V' : Type u} [Ring R] [AddCommGroup V]
     [AddCommGroup V'] [Module R V] [Module R V'] (φ : V ≃ₗ[R] V') :
     ModuleCat.of R V ≅ ModuleCat.of R V' where
   hom := ModuleCat.ofHom φ
@@ -213,7 +216,7 @@ end Representation
 Construct an isomorphism in the category `Rep R G`
 from a Typeland equivalence `ρ ≃ⁱ ρ'`.
 -/
-@[simps] def Rep.Hom.isoOfEquiv {R G : Type*} {V V' : Type u} [Ring R] [Monoid G] [AddCommGroup V]
+@[simps] def Rep.Hom.isoOfEquiv.{u} {R G : Type*} {V V' : Type u} [Ring R] [Monoid G] [AddCommGroup V]
     [AddCommGroup V'] [Module R V] [Module R V'] {ρ : Representation R G V}
     {ρ' : Representation R G V'} (φ : ρ ≃ⁱ ρ') : Rep.of ρ ≅ Rep.of ρ' where
   hom := Rep.ofHom φ.toIntertwiningMap
