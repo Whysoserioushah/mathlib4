@@ -561,16 +561,10 @@ lemma d_cup_d (m n r : ℕ) (hr : r = m + n) (σ : (homogeneousCochains (.of ρ1
     (homogeneousCochains (.of ρ3)).d (r + 1) (r + 2) (cupCochain f m (n + 1) (r + 1) (by omega) σ
       ((homogeneousCochains (.of ρ2)).d n (n + 1) τ)) := by
   subst hr
-  have h := cup_d_comm ρ1 ρ2 ρ3 f m (n + 1) (m + n + 1) (by omega) σ
+  have h := cup_d_comm ρ1 ρ2 ρ3 f m (n + 1) (m + n + 1) rfl σ
     ((homogeneousCochains (.of ρ2)).d n (n + 1) τ)
   rw [cupCochain_d_comp_d] at h
   simpa only [smul_zero, add_zero] using h.symm
-
--- #check HomologicalComplex.cyclesMap
-def cup (m n r : ℕ) (hr : r = m + n) :
-  continuousCohomology m (.of ρ1) ⟶ TopModuleCat.linHom (continuousCohomology n (.of ρ2))
-    (continuousCohomology r (.of ρ3)) :=
-  sorry
 
 end Cup
 
