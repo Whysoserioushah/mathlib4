@@ -29,7 +29,7 @@ representation `X` of `G`, a topological representation `Y` of `H`, and a morphi
 
 universe u v
 
-open CategoryTheory
+open CategoryTheory CategoryTheory.Functor
 
 namespace ContinuousCohomology
 
@@ -39,7 +39,124 @@ variable {k : Type u} {G H K : Type v} [Ring k] [TopologicalSpace k]
   [Group G] [TopologicalSpace G] [IsTopologicalGroup G]
   [Group H] [TopologicalSpace H] [IsTopologicalGroup H]
   [Group K] [TopologicalSpace K] [IsTopologicalGroup K]
-  {X : TopRep k G} {Y : TopRep k H} {Z : TopRep k K}
+  {X X' X'' : TopRep k G} {Y : TopRep k H} {Z : TopRep k K}
+
+
+abbrev resolutionMap₁ (f : X ⟶ X') :
+    (i : ℕ) → (resolutionX X i) ⟶ (resolutionX X' i)
+  | 0 => f
+  | i + 1 => ((coind₁Functor k G).map (resolutionMap₁ f i))
+
+@[simp]
+lemma resolutionMap₁_zero (f : X ⟶ X') : resolutionMap₁ f 0 = f := rfl
+
+lemma resolutionMap₁_succ (f : X ⟶ X') (n : ℕ) :
+    resolutionMap₁ f (n + 1) = (coind₁Functor k G).map (resolutionMap₁ f n) := rfl
+
+/-- The maps `resolutionMap₁ f` commute with the differentials of the resolutions. -/
+lemma resolutionMap₁_comp_d (f : X ⟶ X') (i : ℕ) :
+    resolutionMap₁ f i ≫ d X' i = (d X i) ≫ resolutionMap₁ f (i + 1) := by
+  induction i with
+  | zero => rfl
+  | succ i ih =>
+    rw [d_succ, d_succ, resolutionMap₁_succ f (i + 1), Preadditive.comp_sub,
+      Preadditive.sub_comp]
+    congr 1
+    rw [resolutionMap₁_succ f i, ← Functor.map_comp, ← Functor.map_comp, ih]
+
+lemma resolutionMap₁_id (i : ℕ) : resolutionMap₁ (𝟙 X) i = 𝟙 (resolutionX X i) := by
+  induction i with
+  | zero => rw [resolutionMap₁_zero]
+  | succ _ ih => rw [resolutionMap₁_succ, ih, map_id]
+
+lemma resolutionMap₁_comp (f : X ⟶ X') (f' : X' ⟶ X'') (i : ℕ) :
+    resolutionMap₁ (f ≫ f') i = (resolutionMap₁ f i) ≫ resolutionMap₁ f' i := by
+  induction i with
+  | zero => rfl
+  | succ i ih => rw [resolutionMap₁_succ, resolutionMap₁_succ, resolutionMap₁_succ, ih,
+      map_comp]
+
+variable (k G) in
+abbrev resolution'Functor : TopRep k G ⥤ CochainComplex (TopRep k G) ℕ where
+  obj           := resolution'
+  map {X Y} f   := {
+    f n := resolutionMap₁ f (n + 1)
+    comm' := by simp +contextual [resolution'd_eq, resolutionMap₁_comp_d f _]
+  }
+  map_id _      := HomologicalComplex.hom_ext _ _ <| fun _ ↦ resolutionMap₁_id _
+  map_comp _ _  := HomologicalComplex.hom_ext _ _ <| fun _ ↦ resolutionMap₁_comp _ _ _
+
+variable (X) in
+/-- The morphisms between the levels of the standard resolutions of `X` and `Y` induced by a
+continuous group homomorphism `φ : H →ₜ* G` and a morphism `f : res φ X ⟶ Y`, given by
+`F ↦ f ∘ F ∘ φ`. -/
+abbrev resolutionXRes (φ : H →ₜ* G) :
+    (i : ℕ) → (res φ (resolutionX X i)) ⟶ (resolutionX (res φ.toMonoidHom X) i)
+  | 0 => 𝟙 _
+  | i + 1 => ofHom (coind₁ResMap φ (resolutionXRes φ i).hom)
+
+@[simp]
+lemma resolutionXRes_zero (φ : H →ₜ* G) :
+    resolutionXRes X φ 0 = 𝟙 _ := rfl
+
+lemma resolutionXRes_succ (φ : H →ₜ* G) (i : ℕ) :
+    resolutionXRes X φ (i + 1) = ofHom (coind₁ResMap φ (resolutionXRes _ φ i).hom) := rfl
+
+@[simp]
+lemma resolutionXRes_id (X : TopRep k G) (i : ℕ) :
+    resolutionXRes X (ContinuousMonoidHom.id G) i = 𝟙 (resolutionX X i) := by
+  induction i with
+  | zero => rfl
+  | succ i ih =>
+    rw [resolutionXRes_succ, ih]
+    rfl
+
+lemma resolutionXRes_comp (φ : H →ₜ* G) (ψ : K →ₜ* H) (i : ℕ) :
+    resolutionXRes X (φ.comp ψ) i =
+      (resFunctor ψ.toMonoidHom).map (resolutionXRes X φ i) ≫ resolutionXRes _ ψ i := by
+  induction i with
+  | zero => rfl
+  | succ i ih =>
+    rw [resolutionXRes_succ, resolutionXRes_succ, resolutionXRes_succ, ih]
+    rfl
+
+/-- The maps `resolutionMap φ f` commute with the differentials of the resolutions. -/
+lemma resolutionXRes_comp_d (φ : H →ₜ* G) (i : ℕ) :
+    resolutionXRes X φ i ≫ d _ i =
+      (resFunctor (φ : H →* G)).map (d X i) ≫ resolutionXRes X φ (i + 1) := by
+  induction i with
+  | zero => rfl
+  | succ i ih =>
+    ext : 1
+    replace ih := congr($(ih).hom)
+    simp only [TopRep.hom_comp, TopRep.hom_ofHom, hom_d_succ,
+      ContIntertwiningMap.restrict_sub, ContIntertwiningMap.sub_comp,
+      ContIntertwiningMap.comp_sub, coind₁Map_comp_coind₁ResMap,
+      coind₁ResMap_comp_coind₁Map_restrict] at ih ⊢
+    rw [ih, ← coind₁ResMap_comp_coind₁ι_restrict]
+
+instance (φ : H →* G) : (resFunctor (k := k) φ).PreservesZeroMorphisms where
+  map_zero _ _ := rfl
+
+abbrev resolution'Map₂ (φ : H →ₜ* G) :
+    ((resFunctor φ.toMonoidHom).mapHomologicalComplex (.up ℕ)).obj (resolution' X)
+    ⟶ resolution' (res φ.toMonoidHom X) where
+  f n := resolutionXRes X φ (n + 1)
+  comm' := by
+    intro _ _ rfl
+    simp only [mapHomologicalComplex_obj_d, ContinuousMonoidHom.coe_toMonoidHom,
+      CochainComplex.of_d, resolution'd_eq]
+    exact resolutionXRes_comp_d φ _
+
+def resolution'Map₂NatTrans (φ : H →ₜ* G) :
+    resolution'Functor k G ⋙ (resFunctor ↑φ).mapHomologicalComplex (.up ℕ)
+    ⟶ (resFunctor φ) ⋙ resolution'Functor k H where
+  app X := resolution'Map₂ φ
+  naturality X Y f := by
+    ext1
+    sorry
+
+
 
 set_option allowUnsafeReducibility true in
 attribute [local reducible] CategoryTheory.Functor.mapHomologicalComplex
@@ -79,6 +196,7 @@ lemma resolutionMap_comp (φ : H →ₜ* G) (ψ : K →ₜ* H) (f : res φ X ⟶
     rw [resolutionMap_succ, resolutionMap_succ, resolutionMap_succ, ih]
     ext F x
     rfl
+
 
 /-- The maps `resolutionMap φ f` commute with the differentials of the resolutions. -/
 lemma resolutionMap_comp_d (φ : H →ₜ* G) (f : res φ X ⟶ Y) (i : ℕ) :

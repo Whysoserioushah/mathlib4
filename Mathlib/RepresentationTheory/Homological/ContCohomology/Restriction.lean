@@ -56,23 +56,25 @@ variable {V : Type u₃} [AddCommGroup V] [TopologicalSpace V]
 variable [TopologicalSpace G] [TopologicalSpace H] [TopologicalSpace K]
   (φ : G →ₜ* H) (ψ : K →ₜ* G)
 
-abbrev res : ContRepresentation R G V := π.comp φ
+abbrev res : ContRepresentation R G V := ⟨π.toMonoidHom.comp φ⟩
 
 variable [TopologicalSpace R] [ContinuousSMul R V] [IsTopologicalGroup G] [IsTopologicalGroup H]
 
-/--
-Given `φ : G →ₜ* H`, this is the intertwining operator from `π.coind₁.resFunctor' φ` to
-`(π.resFunctor φ).coind₁`. As a continuous linear map from `C(H,V)` to `C(G,V)`, this function takes
-`f : C(H,V)` to the composition of `f` and `φ`.
--/
-def coind₁_res : (π.coind₁.res φ) →ⁱL (π.res φ).coind₁ where
-  toFun             := φ.toContinuousMap.compRightContinuousMap V
-  map_add' _ _      := rfl
-  map_smul' _ _     := rfl
-  cont              := (φ.toContinuousMap.compRightContinuousMap V).continuous
-  isIntertwining' _ := by ext; simp
+#check coind₁Res
+-- /--
+-- Given `φ : G →ₜ* H`, this is the intertwining operator from `π.coind₁.resFunctor' φ` to
+-- `(π.resFunctor φ).coind₁`. As a continuous linear map from `C(H,V)` to `C(G,V)`, this function takes
+-- `f : C(H,V)` to the composition of `f` and `φ`.
+-- -/
+-- -- def coind₁Res : (π.coind₁.res φ) →ⁱL (π.res φ).coind₁ := coind₁Res _ _
+--   --   where
+--   -- toFun             := φ.toContinuousMap.compRightContinuousMap V
+--   -- map_add' _ _      := rfl
+--   -- map_smul' _ _     := rfl
+--   -- cont              := (φ.toContinuousMap.compRightContinuousMap V).continuous
+--   -- isIntertwining' _ := by ext; simp; rfl
 
-@[simp] lemma coind₁_res_apply (f : C(H, V)) : π.coind₁_res φ f = f.comp φ := rfl
+@[simp] lemma coind₁_res_apply (f : C(H, V)) : π.coind₁Res φ f = f.comp φ := rfl
 
 end ContRepresentation
 
@@ -88,16 +90,16 @@ infixr:90 " ∘ₜ* " => ContinuousMonoidHom.comp
 namespace TopRep
 variable [IsTopologicalRing R]
 
-/--
-For a continuous group homomorphism `φ : G →ₜ* H`, the functor
-`resFunctor R φ : TopRep R H ⥤ TopRep R G` is the restriction functor
-`Action.resFunctor (TopModuleCat R) φ.toMonoidHom`.
--/
-abbrev resFunctor (φ : G →* H) : TopRep R H ⥤ TopRep R G where
-  obj rep := TopRep.of (rep.ρ.comp φ)
-  map f   := TopRep.ofHom ⟨f.hom.toContinuousLinearMap, fun g ↦ f.hom.isIntertwining' (φ g)⟩
+-- /--
+-- For a continuous group homomorphism `φ : G →ₜ* H`, the functor
+-- `resFunctor R φ : TopRep R H ⥤ TopRep R G` is the restriction functor
+-- `Action.resFunctor (TopModuleCat R) φ.toMonoidHom`.
+-- -/
+-- abbrev resFunctor (φ : G →* H) : TopRep R H ⥤ TopRep R G where
+--   obj rep := TopRep.of (rep.ρ.comp φ)
+--   map f   := TopRep.ofHom ⟨f.hom.toContinuousLinearMap, fun g ↦ f.hom.isIntertwining' (φ g)⟩
 
-instance (φ : G →* H) : (resFunctor R φ).Additive where
+-- instance (φ : G →* H) : (resFunctor R φ).Additive where
 
 --lemma resFunctor_id : resFunctor R (.id H) = 𝟭 (TopRep R H) := rfl
 variable (H) in
@@ -105,21 +107,21 @@ variable (H) in
 The isomorphism of functors between `resFunctor R (.id H)` and the identity functor
 `𝟭 (TopRep R H)`.
 -/
-abbrev resFunctor_id_iso : resFunctor R (.id H) ≅ 𝟭 (TopRep R H) := Iso.refl _
+abbrev resFunctor_id_iso : resFunctor (k := R) (.id H) ≅ 𝟭 (TopRep R H) := Iso.refl _
 
 /--
 The isomorphism of functors between `resFunctor R (φ ∘ₜ ψ)` and the composition
 `resFunctor R φ ⋙ resFunctor R ψ`.
 -/
 abbrev resFunctor_comp_iso (φ : G →* H) (ψ : H →* K) :
-    resFunctor R (ψ.comp φ) ≅ resFunctor R ψ ⋙ resFunctor R φ := Iso.refl _
+    resFunctor (k := R) (ψ.comp φ) ≅ resFunctor (k := R) ψ ⋙ resFunctor (k := R) φ := Iso.refl _
 
 variable {R}
 
-def toContRepresentation (rep : TopRep R G) : ContRepresentation R G rep.V where
+def toContRepresentation (rep : TopRep R G) : ContRepresentation R G rep.V := ⟨{
   toFun         := rep.ρ
   map_one'      := by simp [ContinuousLinearMap.one_def]
-  map_mul' _ _  := by simp [ContinuousLinearMap.mul_def]
+  map_mul' _ _  := by simp [ContinuousLinearMap.mul_def]}⟩
 
 end TopRep
 
@@ -135,12 +137,13 @@ defined as a natural transformation from the functor `I R H ⋙ resFunctor R φ`
 `resFunctor R φ ⋙ I R G`.
 -/
 def I_resNatTrans :
-     coind₁ R H ⋙ resFunctor R φ.toMonoidHom ⟶ resFunctor R φ.toMonoidHom ⋙ coind₁ R G where
-  app rep           := TopRep.ofHom ((toContRepresentation rep).coind₁_res φ)
+    TopRep.coind₁Functor (k := R) (G := H) ⋙ resFunctor (k := R) φ.toMonoidHom
+    ⟶ resFunctor (k := R) φ.toMonoidHom ⋙ TopRep.coind₁Functor (k := R) G where
+  app rep           := TopRep.ofHom ((toContRepresentation rep).coind₁Res φ)
   naturality _ _ _  := rfl
 
 lemma const_hcomp_id_comp_I_resNatTrans :
-    (coind₁ι R H ◫ 𝟙 (resFunctor R φ.toMonoidHom)) ≫ I_resNatTrans R φ
+    (TopRep.coind₁ι R H ◫ 𝟙 (resFunctor R φ.toMonoidHom)) ≫ I_resNatTrans R φ
     = (leftUnitor (resFunctor R φ.toMonoidHom)).hom
     ≫ (rightUnitor (resFunctor R φ.toMonoidHom)).inv
     ≫ 𝟙 (resFunctor R φ.toMonoidHom) ◫ coind₁ι R G := rfl
