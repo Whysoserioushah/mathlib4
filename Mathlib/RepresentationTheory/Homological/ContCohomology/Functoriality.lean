@@ -41,6 +41,7 @@ variable {k : Type u} {G H K : Type v} [Ring k] [TopologicalSpace k]
   [Group K] [TopologicalSpace K] [IsTopologicalGroup K]
   {X X' X'' : TopRep k G} {Y : TopRep k H} {Z : TopRep k K}
 
+instance (φ : H →* G) : (resFunctor (k := k) φ).Additive where
 
 abbrev resolutionMap₁ (f : X ⟶ X') :
     (i : ℕ) → (resolutionX X i) ⟶ (resolutionX X' i)
@@ -94,14 +95,15 @@ variable (X) in
 /-- The morphisms between the levels of the standard resolutions of `X` and `Y` induced by a
 continuous group homomorphism `φ : H →ₜ* G` and a morphism `f : res φ X ⟶ Y`, given by
 `F ↦ f ∘ F ∘ φ`. -/
-abbrev resolutionXRes (φ : H →ₜ* G) :
+abbrev _root_.TopRep.resolutionXRes (φ : H →ₜ* G) :
     (i : ℕ) → (res φ (resolutionX X i)) ⟶ (resolutionX (res φ.toMonoidHom X) i)
   | 0 => 𝟙 _
   | i + 1 => ofHom (coind₁ResMap φ (resolutionXRes φ i).hom)
 
 @[simp]
-lemma resolutionXRes_zero (φ : H →ₜ* G) :
-    resolutionXRes X φ 0 = 𝟙 _ := rfl
+lemma resolutionXRes_zero (φ : H →ₜ* G) : X.resolutionXRes φ 0 = 𝟙 _ := rfl
+
+lemma resolutionXRes_one (φ : H →ₜ* G) : X.resolutionXRes φ 1 = ofHom (coind₁ResMap φ .id) := rfl
 
 lemma resolutionXRes_succ (φ : H →ₜ* G) (i : ℕ) :
     resolutionXRes X φ (i + 1) = ofHom (coind₁ResMap φ (resolutionXRes _ φ i).hom) := rfl
@@ -187,39 +189,27 @@ def _root_.TopRep.homogeneousCochainsXRes (φ : H →ₜ* G) (X : TopRep k G) (n
   (X.resolutionX _).invariantsRes φ.toMonoidHom ≫ ((invariantsFunctor (k := k) (G := H)).map
   (resolutionXRes X φ _))
 
-/-- The maps `homogeneousCochainsXRes φ X n` commute with the differentials of the complexes of
-homogeneous cochains. -/
-lemma _root_.TopRep.homogeneousCochainsXRes_comp_d (φ : H →ₜ* G) (X : TopRep k G) (n : ℕ) :
-    homogeneousCochainsXRes φ X n ≫
-        (invariantsFunctor k H).map (d (X.res φ.toMonoidHom) (n + 1)) =
-      (invariantsFunctor k G).map (d X (n + 1)) ≫ homogeneousCochainsXRes φ X (n + 1) := by
-  change ((X.resolutionX (n + 1)).invariantsRes (φ : H →* G) ≫
-        (invariantsFunctor k H).map (resolutionXRes X φ (n + 1))) ≫
-      (invariantsFunctor k H).map (d (X.res φ.toMonoidHom) (n + 1)) =
-    (invariantsFunctor k G).map (d X (n + 1)) ≫
-      (X.resolutionX (n + 1 + 1)).invariantsRes (φ : H →* G) ≫
-        (invariantsFunctor k H).map (resolutionXRes X φ (n + 1 + 1))
-  rw [Category.assoc, ← Functor.map_comp, resolutionXRes_comp_d, Functor.map_comp,
-    ← Category.assoc, ← Category.assoc]
-  exact ((invariantsResNatTrans (φ : H →* G)).naturality (d X (n + 1))).symm =≫ _
+lemma _root_.TopRep.homogeneousCochainsXRes_zero (φ : H →ₜ* G) (X : TopRep k G) :
+    X.homogeneousCochainsXRes φ 0 =
+    X.coind₁.invariantsRes φ ≫ (invariantsFunctor k H).map (ofHom (coind₁ResMap φ .id)) := rfl
 
-def _root_.TopRep.homogeneousCochainsRes (φ : H →ₜ* G) (X : TopRep k G) :
-    X.homogeneousCochains ⟶ (X.res φ.toMonoidHom).homogeneousCochains where
-  f := homogeneousCochainsXRes φ X
-  comm' := by
-    intro n _ rfl
-    rw [homogeneousCochains.d_eq, homogeneousCochains.d_eq]
-    exact TopRep.homogeneousCochainsXRes_comp_d φ X n
+lemma _root_.TopRep.homogeneousCochainsXRes_succ (φ : H →ₜ* G) (X : TopRep k G) (n : ℕ) :
+    X.homogeneousCochainsXRes φ (n + 1) = sorry := sorry
 
+
+variable (k) in
 def homogeneousCochainsResNatTrans (φ : H →ₜ* G) :
     homogeneousCochainsFunctor k G
-    ⟶ (resFunctor φ.toMonoidHom) ⋙ homogeneousCochainsFunctor k H := by
-  have that := ((𝟙 (resolution'Functor k G))
-    ◫ (invariantsResNatTrans φ.toMonoidHom (k := k)).mapHomologicalComplex (.up ℕ))
-  have this := (resolution'ResNatTrans φ (k := k)
-    ◫ (𝟙 (invariantsFunctor (k := k) (G := H).mapHomologicalComplex _)))
-  exact that ≫ this
+    ⟶ (resFunctor φ.toMonoidHom) ⋙ homogeneousCochainsFunctor k H :=
+  ((𝟙 (resolution'Functor k G))
+  ◫ ((invariantsResNatTrans φ.toMonoidHom (k := k)).mapHomologicalComplex (.up ℕ)
+  ≫ (mapHomologicalComplexCompIso (Iso.refl _) (.up ℕ)).inv))
+  ≫ (associator _ _ _).inv ≫ (resolution'ResNatTrans φ (k := k)
+  ◫ (𝟙 (invariantsFunctor (k := k) (G := H).mapHomologicalComplex _)))
+  ≫ (associator _ _ _).hom
 
+lemma homogeneousCochainsResNatTrans_app_f (φ : H →ₜ* G) (X : TopRep k G) (n : ℕ) :
+    ((homogeneousCochainsResNatTrans k φ).app X).f n = homogeneousCochainsXRes φ X n := rfl
 
 set_option allowUnsafeReducibility true in
 attribute [local reducible] CategoryTheory.Functor.mapHomologicalComplex
