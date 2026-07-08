@@ -27,7 +27,7 @@ representation `X` of `G`, a topological representation `Y` of `H`, and a morphi
 
 @[expose] public section
 
-universe u v
+universe u v w
 
 open CategoryTheory CategoryTheory.Functor
 
@@ -42,6 +42,41 @@ variable {k : Type u} {G H K : Type v} [Ring k] [TopologicalSpace k]
   {X X' X'' : TopRep k G} {Y : TopRep k H} {Z : TopRep k K}
 
 instance (φ : H →* G) : (resFunctor (k := k) φ).Additive where
+
+omit [TopologicalSpace G] [IsTopologicalGroup G] in
+@[simp]
+lemma _root_.TopRep.ofHom_comp {A B C : Type w}
+    [AddCommGroup A] [Module k A] [TopologicalSpace A] [IsTopologicalAddGroup A]
+    [ContinuousSMul k A]
+    [AddCommGroup B] [Module k B] [TopologicalSpace B] [IsTopologicalAddGroup B]
+    [ContinuousSMul k B]
+    [AddCommGroup C] [Module k C] [TopologicalSpace C] [IsTopologicalAddGroup C]
+    [ContinuousSMul k C]
+    {ρ : ContRepresentation k G A} {σ : ContRepresentation k G B}
+    {τ : ContRepresentation k G C} (f : ρ →ⁱL σ) (g : σ →ⁱL τ) :
+    ofHom (g.comp f) = ofHom f ≫ ofHom g := rfl
+
+omit [TopologicalSpace k] [TopologicalSpace G] [IsTopologicalGroup G] in
+@[simp]
+lemma _root_.ContIntertwiningMap.comp_id {A B : Type w}
+    [AddCommGroup A] [Module k A] [TopologicalSpace A] [IsTopologicalAddGroup A]
+    [AddCommGroup B] [Module k B] [TopologicalSpace B] [IsTopologicalAddGroup B]
+    {ρ : ContRepresentation k G A} {σ : ContRepresentation k G B} (f : ρ →ⁱL σ) :
+    f.comp .id = f := rfl
+
+omit [TopologicalSpace k] [TopologicalSpace G] [IsTopologicalGroup G] in
+@[simp]
+lemma _root_.ContIntertwiningMap.id_comp {A B : Type w}
+    [AddCommGroup A] [Module k A] [TopologicalSpace A] [IsTopologicalAddGroup A]
+    [AddCommGroup B] [Module k B] [TopologicalSpace B] [IsTopologicalAddGroup B]
+    {ρ : ContRepresentation k G A} {σ : ContRepresentation k G B} (f : ρ →ⁱL σ) :
+    ContIntertwiningMap.id.comp f = f := rfl
+
+@[simp]
+lemma _root_.ContRepresentation.coind₁Res_id {A : Type w}
+    [AddCommGroup A] [Module k A] [TopologicalSpace A] [IsTopologicalAddGroup A]
+    [ContinuousSMul k A] (π : ContRepresentation k G A) :
+    coind₁Res (ContinuousMonoidHom.id G) π = .id := rfl
 
 abbrev resolutionMap₁ (f : X ⟶ X') :
     (i : ℕ) → (resolutionX X i) ⟶ (resolutionX X' i)
@@ -77,20 +112,30 @@ lemma resolutionMap₁_comp (f : X ⟶ X') (f' : X' ⟶ X'') (i : ℕ) :
   | succ i ih => rw [resolutionMap₁_succ, resolutionMap₁_succ, resolutionMap₁_succ, ih,
       map_comp]
 
-variable (k G) in
-abbrev resolution'Functor : TopRep k G ⥤ CochainComplex (TopRep k G) ℕ where
+variable (k G)
+@[simps] abbrev resolution'Functor : TopRep k G ⥤ CochainComplex (TopRep k G) ℕ where
   obj           := resolution'
   map {X Y} f   := {
-    f n := resolutionMap₁ f (n + 1)
+    f n   := resolutionMap₁ f (n + 1)
     comm' := by simp +contextual [resolution'd_eq, resolutionMap₁_comp_d f _]
   }
   map_id _      := HomologicalComplex.hom_ext _ _ <| fun _ ↦ resolutionMap₁_id _
   map_comp _ _  := HomologicalComplex.hom_ext _ _ <| fun _ ↦ resolutionMap₁_comp _ _ _
 
-variable (k G) in
 abbrev homogeneousCochainsFunctor : TopRep k G ⥤ CochainComplex (TopModuleCat k) ℕ :=
     resolution'Functor k G ⋙ (invariantsFunctor k G).mapHomologicalComplex (.up ℕ)
 
+lemma homogeneousCochainsFunctor_obj :
+    (homogeneousCochainsFunctor k G).obj = homogeneousCochains := rfl
+
+noncomputable abbrev Functor (n : ℕ) : TopRep k G ⥤ TopModuleCat k :=
+    homogeneousCochainsFunctor k G ⋙ HomologicalComplex.homologyFunctor _ _ n
+
+notation "Hₜ" => continuousCohomology
+
+lemma Functor_obj (n : ℕ) : (Functor k G n).obj = Hₜ n := rfl
+
+variable {k G}
 variable (X) in
 /-- The morphisms between the levels of the standard resolutions of `X` and `Y` induced by a
 continuous group homomorphism `φ : H →ₜ* G` and a morphism `f : res φ X ⟶ Y`, given by
@@ -115,7 +160,8 @@ lemma resolutionXRes_id (X : TopRep k G) (i : ℕ) :
   | zero => rfl
   | succ i ih =>
     rw [resolutionXRes_succ, ih]
-    rfl
+    ext; rfl
+
 
 lemma resolutionXRes_comp (φ : H →ₜ* G) (ψ : K →ₜ* H) (i : ℕ) :
     resolutionXRes X (φ.comp ψ) i =
@@ -124,7 +170,7 @@ lemma resolutionXRes_comp (φ : H →ₜ* G) (ψ : K →ₜ* H) (i : ℕ) :
   | zero => rfl
   | succ i ih =>
     rw [resolutionXRes_succ, resolutionXRes_succ, resolutionXRes_succ, ih]
-    rfl
+    ext; rfl
 
 /-- The maps `resolutionMap φ f` commute with the differentials of the resolutions. -/
 lemma resolutionXRes_comp_d (φ : H →ₜ* G) (i : ℕ) :
@@ -194,22 +240,29 @@ lemma _root_.TopRep.homogeneousCochainsXRes_zero (φ : H →ₜ* G) (X : TopRep 
     X.coind₁.invariantsRes φ ≫ (invariantsFunctor k H).map (ofHom (coind₁ResMap φ .id)) := rfl
 
 lemma _root_.TopRep.homogeneousCochainsXRes_succ (φ : H →ₜ* G) (X : TopRep k G) (n : ℕ) :
-    X.homogeneousCochainsXRes φ (n + 1) = sorry := sorry
-
+    X.homogeneousCochainsXRes φ (n + 1) =
+    (X.resolution'X n).coind₁.invariantsRes φ ≫ (invariantsFunctor k H).map
+    (ofHom (coind₁ResMap φ (X.resolutionXRes φ (n + 1)).hom)) := rfl
 
 variable (k) in
-def homogeneousCochainsResNatTrans (φ : H →ₜ* G) :
-    homogeneousCochainsFunctor k G
+def homogeneousCochainsResNatTrans (φ : H →ₜ* G) : homogeneousCochainsFunctor k G
     ⟶ (resFunctor φ.toMonoidHom) ⋙ homogeneousCochainsFunctor k H :=
-  ((𝟙 (resolution'Functor k G))
-  ◫ ((invariantsResNatTrans φ.toMonoidHom (k := k)).mapHomologicalComplex (.up ℕ)
-  ≫ (mapHomologicalComplexCompIso (Iso.refl _) (.up ℕ)).inv))
-  ≫ (associator _ _ _).inv ≫ (resolution'ResNatTrans φ (k := k)
-  ◫ (𝟙 (invariantsFunctor (k := k) (G := H).mapHomologicalComplex _)))
+  (𝟙 (resolution'Functor k G)
+    ◫ ((invariantsResNatTrans φ.toMonoidHom (k := k)).mapHomologicalComplex _
+    ≫ (mapHomologicalComplexCompIso (.refl _) _).inv))
+  ≫ (associator _ _ _).inv
+  ≫ (resolution'ResNatTrans φ ◫ (𝟙 _))
   ≫ (associator _ _ _).hom
 
 lemma homogeneousCochainsResNatTrans_app_f (φ : H →ₜ* G) (X : TopRep k G) (n : ℕ) :
     ((homogeneousCochainsResNatTrans k φ).app X).f n = homogeneousCochainsXRes φ X n := rfl
+
+variable (k) in
+noncomputable abbrev resNatTrans (φ : H →ₜ* G) (n : ℕ) :
+    (Functor k G n) ⟶ (resFunctor φ.toMonoidHom ⋙ Functor k H n) :=
+  homogeneousCochainsResNatTrans k φ ◫ 𝟙 _
+
+
 
 set_option allowUnsafeReducibility true in
 attribute [local reducible] CategoryTheory.Functor.mapHomologicalComplex

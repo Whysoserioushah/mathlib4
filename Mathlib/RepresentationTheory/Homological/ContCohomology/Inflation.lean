@@ -3,7 +3,7 @@ Copyright (c) 2026 Richard Hill. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Richard Hill
 -/
-import Mathlib.RepresentationTheory.Homological.ContCohomology.Restriction
+import Mathlib.RepresentationTheory.Homological.ContCohomology.Functoriality
 /-!
 Define inflation maps in continuous cohomology.
 -/
@@ -45,53 +45,54 @@ lemma rho_mem_relInvariants {v : V} (hv : v ∈ ρ.relInvariants N) (g : G) :
     _ = ρ g (ρ (g⁻¹ * n * g) v) := by rw [map_mul, mul_apply_eq_comp]
     _ = ρ g v                   := by rw [hv _ (Subgroup.Normal.conj_mem' hN n hn g)]
 
-@[simps] def relInvariants_rho : ContRepresentation R G (ρ.relInvariants N) where
+@[simps] def relInvariantsRho : ContRepresentation R G (ρ.relInvariants N) := ⟨{
   toFun g       := (ρ g).restrict (fun _ hv ↦ ρ.rho_mem_relInvariants N hv g)
   map_one'      := by ext; simp
   map_mul' _ _  := by ext; simp
+}⟩
 
-def relInvariants_intertwining (f : ρ →ⁱL ρ') :
-    ρ.relInvariants_rho N →ⁱL ρ'.relInvariants_rho N where
+def relInvariantsIntertwining (f : ρ →ⁱL ρ') :
+    ρ.relInvariantsRho N →ⁱL ρ'.relInvariantsRho N where
   toContinuousLinearMap := f.toContinuousLinearMap.restrict (by
     intro v hv n hn
     have := (f.isIntertwining n v).symm
     rwa [hv n hn] at this)
   isIntertwining' g := by
     ext v
-    simp only [relInvariants_rho_apply, ContinuousLinearMap.coe_comp, Function.comp_apply,
+    simp only [ContinuousLinearMap.coe_comp, Function.comp_apply,
       ContinuousLinearMap.coe_restrict_apply]
     exact f.isIntertwining g v
 
-lemma le_relInvariants_ker : N ≤ (ρ.relInvariants_rho N).ker := by
+lemma le_relInvariantsRho_ker : N ≤ (ρ.relInvariantsRho N).toMonoidHom.ker := by
   intro n hn
   rw [MonoidHom.mem_ker]
   ext ⟨_,hv⟩
   apply hv _ hn
 
-def relInvariants_infl : ContRepresentation R (G ⧸ N) (ρ.relInvariants N) :=
-  QuotientGroup.lift N (ρ.relInvariants_rho N) (ρ.le_relInvariants_ker N)
+def relInvariantsInfl : ContRepresentation R (G ⧸ N) (ρ.relInvariants N) :=
+  ⟨QuotientGroup.lift N (ρ.relInvariantsRho N) (ρ.le_relInvariantsRho_ker N)⟩
 
-def relInvariants_intertwining' (f : ρ →ⁱL ρ') :
-    ρ.relInvariants_infl N →ⁱL ρ'.relInvariants_infl N where
-  toContinuousLinearMap := (relInvariants_intertwining ρ ρ' N f).toContinuousLinearMap
+def relInvariantsIntertwining' (f : ρ →ⁱL ρ') :
+    ρ.relInvariantsInfl N →ⁱL ρ'.relInvariantsInfl N where
+  toContinuousLinearMap := (relInvariantsIntertwining ρ ρ' N f).toContinuousLinearMap
   isIntertwining' g := by
     obtain ⟨g',rfl⟩ := g.exists_rep
-    apply (relInvariants_intertwining ρ ρ' N f).isIntertwining'
+    apply (relInvariantsIntertwining ρ ρ' N f).isIntertwining'
 
 end ContRepresentation
 
-variable [TopologicalSpace R] [IsTopologicalRing R]
+variable [TopologicalSpace R]
 variable (N : Subgroup G) [N.Normal]
 variable {π_G : TopRep R G} {π_H : TopRep R H}
 
 namespace TopRep
 
 def relInvariantsFunctor : TopRep R G ⥤ TopRep R (G ⧸ N) where
-  obj π_G       := TopRep.of (π_G.ρ.relInvariants_infl N)
-  map f         := TopRep.ofHom (ContRepresentation.relInvariants_intertwining' _ _ N f.hom)
+  obj π_G       := TopRep.of (π_G.ρ.relInvariantsInfl N)
+  map f         := TopRep.ofHom (ContRepresentation.relInvariantsIntertwining' _ _ N f.hom)
 
 variable (R) in
-@[simps] def infl_ι : (relInvariantsFunctor N ⋙ resFunctor R (QuotientGroup.mk' N)) ⟶ 𝟭 (TopRep R G)
+@[simps] def inflι : (relInvariantsFunctor N ⋙ resFunctor (QuotientGroup.mk' N)) ⟶ 𝟭 (TopRep R G)
     where
   app _ := TopRep.ofHom {
     toFun := Subtype.val
@@ -116,35 +117,34 @@ variable [IsTopologicalGroup G]
 noncomputable section
 namespace ContinuousCohomology
 
-abbrev infl_app (n : ℕ) (π : TopRep R G) :
-    (relInvariantsFunctor N ⋙ continuousCohomology R (G ⧸ N) n).obj π
-    ⟶ (continuousCohomology R G n).obj ((𝟭 _).obj π) :=
+abbrev inflApp (n : ℕ) (π : TopRep R G) :
+    (relInvariantsFunctor N ⋙ Functor R (G ⧸ N) n).obj π
+    ⟶ (Functor R G n).obj ((𝟭 _).obj π) :=
   (resNatTrans R (QuotientGroup.mk'' N) n).app
   ((relInvariantsFunctor N).obj π)
-  ≫ (continuousCohomology R G n).map
-  ((infl_ι R N).app π)
+  ≫ (Functor R G n).map
+  ((inflι R N).app π)
 
-set_option backward.isDefEq.respectTransparency false in
-lemma infl_naturality (n : ℕ) {π₁ π₂ : TopRep R G} (f : π₁ ⟶ π₂) :
-    (relInvariantsFunctor N ⋙ continuousCohomology R (G ⧸ N) n).map f
-    ≫ (infl_app N n π₂) = (infl_app N n π₁) ≫ (continuousCohomology R G n).map f := by
-  rw [Functor.comp_map, infl_app]
-  simp only [←Category.assoc]
-  have := (resNatTrans R (QuotientGroup.mk'' N) n).naturality  ((relInvariantsFunctor N).map f)
-  simp only [Functor.comp_map] at this
-  simp only [this, infl_app, Category.assoc, ←Functor.map_comp]
-  apply congr_arg
-  apply congr_arg
-  convert! (infl_ι R N).naturality f
+/-- The components `inflApp N n` are natural in the representation: they intertwine the
+functorial maps on continuous cohomology. -/
+lemma inflApp_naturality (n : ℕ) {π₁ π₂ : TopRep R G} (f : π₁ ⟶ π₂) :
+    (relInvariantsFunctor N ⋙ Functor R (G ⧸ N) n).map f ≫ inflApp N n π₂ =
+      inflApp N n π₁ ≫ (Functor R G n).map f := by
+  have h := (Functor R G n).congr_map ((inflι R N).naturality f)
+  rw [Functor.map_comp, Functor.map_comp] at h
+  refine ((resNatTrans R (QuotientGroup.mk'' N) n).naturality_assoc
+    ((relInvariantsFunctor N).map f) _).trans ?_
+  rw [Category.assoc]
+  exact whisker_eq _ h
 
 noncomputable def inflNatTrans (n : ℕ) :
-    relInvariantsFunctor N ⋙ continuousCohomology R (G ⧸ N) n ⟶ continuousCohomology R G n where
-  app            := infl_app N n
+    relInvariantsFunctor N ⋙ Functor R (G ⧸ N) n ⟶ Functor R G n where
+  app            := inflApp N n
   naturality _ _ f := by
     /-
-    Note that the following proof is a lot quicker than `exact infl_naturality N n f`.
+    Note that the following proof is a lot quicker than `exact inflApp_naturality N n f`.
     -/
-    have := infl_naturality N n f
+    have := inflApp_naturality N n f
     simpa only [Functor.id_obj] using this
 
 end ContinuousCohomology
