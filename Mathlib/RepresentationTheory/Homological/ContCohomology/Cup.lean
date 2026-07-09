@@ -47,6 +47,9 @@ group cohomology.
 
 @[expose] public section
 
+set_option allowUnsafeReducibility true in
+attribute [local reducible] CategoryTheory.Functor.mapHomologicalComplex
+
 universe u v w
 
 namespace TopCup
@@ -77,6 +80,157 @@ open TopCup
 variable {k : Type u} [CommRing k] [TopologicalSpace k]
 
 abbrev linHom (M1 M2 : TopModuleCat k) : TopModuleCat k := .of k (M1 →L[k] M2)
+
+/-- Pre- and post-composition induce a morphism between the internal homs of topological
+modules. -/
+def linHomMap {A A' B B' : TopModuleCat k} (a : A' ⟶ A) (b : B ⟶ B') :
+    linHom A B ⟶ linHom A' B' :=
+  ofHom
+    { toFun φ := b.hom ∘L φ ∘L a.hom
+      map_add' φ ψ := by ext x; simp
+      map_smul' c φ := by ext x; simp
+      cont := by
+        refine continuous_induced_rng.2 ?_
+        change Continuous fun φ : ↥A →L[k] ↥B ↦
+          (b.hom : C(↥B, ↥B')).comp ((⟨φ, φ.cont⟩ : C(↥A, ↥B)).comp (a.hom : C(↥A', ↥A)))
+        exact ((b.hom : C(↥B, ↥B')).continuous_postcomp).comp
+          (((a.hom : C(↥A', ↥A)).continuous_precomp).comp continuous_induced_dom) }
+
+@[simp]
+lemma linHomMap_apply {A A' B B' : TopModuleCat k} (a : A' ⟶ A) (b : B ⟶ B')
+    (φ : ↥(linHom A B)) (x : ↥A') :
+    linHomMap a b φ x = b.hom (φ (a.hom x)) := rfl
+
+/-- Bundle a bilinear pairing with jointly continuous uncurried form into a morphism to the
+internal hom. Stating this for abstract topological modules keeps all instance searches on
+abstract carriers. -/
+def homOfBilinear {A B C : TopModuleCat k} (F : ↥A → (↥B →L[k] ↥C))
+    (hadd : ∀ a a' b, F (a + a') b = F a b + F a' b)
+    (hsmul : ∀ (c : k) a b, F (c • a) b = c • F a b)
+    (hF : Continuous fun p : ↥A × ↥B ↦ F p.1 p.2) :
+    A ⟶ linHom B C :=
+  ofHom
+    { toFun := F
+      map_add' a a' := ContinuousLinearMap.ext fun b ↦ hadd a a' b
+      map_smul' c a := ContinuousLinearMap.ext fun b ↦ hsmul c a b
+      cont := by
+        refine continuous_induced_rng.2 (ContinuousMap.continuous_of_continuous_uncurry _ ?_)
+        exact hF }
+
+@[simp]
+lemma homOfBilinear_apply {A B C : TopModuleCat k} (F : ↥A → (↥B →L[k] ↥C))
+    (hadd : ∀ a a' b, F (a + a') b = F a b + F a' b)
+    (hsmul : ∀ (c : k) a b, F (c • a) b = c • F a b)
+    (hF : Continuous fun p : ↥A × ↥B ↦ F p.1 p.2) (a : ↥A) :
+    homOfBilinear F hadd hsmul hF a = F a := rfl
+
+section Coker
+
+open CategoryTheory Limits
+
+variable {M N N' P : TopModuleCat.{v} k}
+
+/-- The universal property of the concrete quotient `TopModuleCat.coker`: a morphism killing
+the range descends to the quotient. -/
+noncomputable def cokerDesc (φ : M ⟶ N) (ψ : N ⟶ P) (w : φ ≫ ψ = 0) : coker φ ⟶ P :=
+  (isColimitCoker φ).desc (CokernelCofork.ofπ ψ w)
+
+@[reassoc (attr := simp)]
+lemma cokerπ_cokerDesc (φ : M ⟶ N) (ψ : N ⟶ P) (w : φ ≫ ψ = 0) :
+    cokerπ φ ≫ cokerDesc φ ψ w = ψ :=
+  (isColimitCoker φ).fac (CokernelCofork.ofπ ψ w) WalkingParallelPair.one
+
+@[simp]
+lemma cokerDesc_apply (φ : M ⟶ N) (ψ : N ⟶ P) (w : φ ≫ ψ = 0) (y : ↥N) :
+    cokerDesc φ ψ w (cokerπ φ y) = ψ y :=
+  congr($(cokerπ_cokerDesc φ ψ w) y)
+
+lemma cokerπ_eq_zero_iff (φ : M ⟶ N) (y : ↥N) :
+    cokerπ φ y = 0 ↔ y ∈ φ.hom.range :=
+  Submodule.Quotient.mk_eq_zero _
+
+/-- Cokernels of morphisms identified under an isomorphism of the targets are isomorphic. -/
+noncomputable def cokerCongr {φ : M ⟶ N} {ψ : M ⟶ N'} (e : N ≅ N') (w : φ ≫ e.hom = ψ) :
+    coker φ ≅ coker ψ where
+  hom := cokerDesc φ (e.hom ≫ cokerπ ψ) (by rw [← Category.assoc, w, comp_cokerπ])
+  inv := cokerDesc ψ (e.inv ≫ cokerπ φ) (by rw [← w]; simp)
+  hom_inv_id := by rw [← cancel_epi (cokerπ φ)]; simp
+  inv_hom_id := by rw [← cancel_epi (cokerπ ψ)]; simp
+
+@[reassoc (attr := simp)]
+lemma cokerπ_cokerCongr_hom {φ : M ⟶ N} {ψ : M ⟶ N'} (e : N ≅ N') (w : φ ≫ e.hom = ψ) :
+    cokerπ φ ≫ (cokerCongr e w).hom = e.hom ≫ cokerπ ψ :=
+  cokerπ_cokerDesc _ _ _
+
+lemma isOpenQuotientMap_cokerπ (φ : M ⟶ N) : IsOpenQuotientMap ⇑(cokerπ φ).hom :=
+  Submodule.isOpenQuotientMap_mkQ _
+
+lemma cokerπ_surjective' (φ : M ⟶ N) (q : ↥(coker φ)) : ∃ y, cokerπ φ y = q :=
+  cokerπ_surjective φ q
+
+section DescBilinear
+
+variable {M₂ N₂ M₃ N₃ : TopModuleCat.{v} k}
+
+/-- Descend a continuous linear map along cokernel projections on both sides. -/
+noncomputable def cokerDescCLM (φ₂ : M₂ ⟶ N₂) (φ₃ : M₃ ⟶ N₃) (u : ↥N₂ →L[k] ↥N₃)
+    (h : ∀ y, cokerπ φ₃ (u (φ₂ y)) = 0) :
+    ↥(coker φ₂) →L[k] ↥(coker φ₃) :=
+  (cokerDesc φ₂ (ofHom ((cokerπ φ₃).hom ∘L u))
+    (ConcreteCategory.hom_ext _ _ fun y ↦ h y)).hom
+
+@[simp]
+lemma cokerDescCLM_apply (φ₂ : M₂ ⟶ N₂) (φ₃ : M₃ ⟶ N₃) (u : ↥N₂ →L[k] ↥N₃)
+    (h : ∀ y, cokerπ φ₃ (u (φ₂ y)) = 0) (y : ↥N₂) :
+    cokerDescCLM φ₂ φ₃ u h (cokerπ φ₂ y) = cokerπ φ₃ (u y) :=
+  congr($(cokerπ_cokerDesc φ₂ (ofHom ((cokerπ φ₃).hom ∘L u))
+    (ConcreteCategory.hom_ext _ _ fun z ↦ h z)) y)
+
+variable {N₁ : TopModuleCat.{v} k}
+
+/-- The descended family of continuous linear maps has jointly continuous uncurried form. -/
+lemma continuous_cokerDescCLM_uncurry (φ₂ : M₂ ⟶ N₂) (φ₃ : M₃ ⟶ N₃)
+    (F : ↥N₁ → (↥N₂ →L[k] ↥N₃)) (h : ∀ σ y, cokerπ φ₃ (F σ (φ₂ y)) = 0)
+    (hF : Continuous fun p : ↥N₁ × ↥N₂ ↦ F p.1 p.2) :
+    Continuous fun p : ↥N₁ × ↥(coker φ₂) ↦ cokerDescCLM φ₂ φ₃ (F p.1) (h p.1) p.2 :=
+  ((IsOpenQuotientMap.id.prodMap (isOpenQuotientMap_cokerπ φ₂)).continuous_comp_iff).1
+    ((cokerπ φ₃).hom.continuous.comp hF)
+
+/-- Descend a bilinear pairing, bundled as a morphism into the internal hom, along cokernel
+projections in all three slots. -/
+noncomputable def cokerDescBilinear {M₁ : TopModuleCat.{v} k}
+    (φ₁ : M₁ ⟶ N₁) (φ₂ : M₂ ⟶ N₂) (φ₃ : M₃ ⟶ N₃) (F : N₁ ⟶ linHom N₂ N₃)
+    (hF : Continuous fun p : ↥N₁ × ↥N₂ ↦ F p.1 p.2)
+    (h₁ : ∀ (y : ↥M₁) (τ : ↥N₂), cokerπ φ₃ (F (φ₁ y) τ) = 0)
+    (h₂ : ∀ (σ : ↥N₁) (y : ↥M₂), cokerπ φ₃ (F σ (φ₂ y)) = 0) :
+    coker φ₁ ⟶ linHom (coker φ₂) (coker φ₃) :=
+  cokerDesc φ₁
+    (homOfBilinear (fun σ ↦ cokerDescCLM φ₂ φ₃ (F σ) (h₂ σ))
+      (fun σ σ' q ↦ by
+        obtain ⟨y, rfl⟩ := cokerπ_surjective' φ₂ q
+        rw [cokerDescCLM_apply, cokerDescCLM_apply, cokerDescCLM_apply, map_add, add_apply,
+          map_add])
+      (fun c σ q ↦ by
+        obtain ⟨y, rfl⟩ := cokerπ_surjective' φ₂ q
+        rw [cokerDescCLM_apply, cokerDescCLM_apply, map_smul, smul_apply, map_smul])
+      (continuous_cokerDescCLM_uncurry φ₂ φ₃ F h₂ hF))
+    (ConcreteCategory.hom_ext _ _ fun y ↦ ContinuousLinearMap.ext fun q ↦ by
+      obtain ⟨τ, rfl⟩ := cokerπ_surjective' φ₂ q
+      exact h₁ y τ)
+
+@[simp]
+lemma cokerDescBilinear_apply {M₁ : TopModuleCat.{v} k}
+    (φ₁ : M₁ ⟶ N₁) (φ₂ : M₂ ⟶ N₂) (φ₃ : M₃ ⟶ N₃) (F : N₁ ⟶ linHom N₂ N₃)
+    (hF : Continuous fun p : ↥N₁ × ↥N₂ ↦ F p.1 p.2)
+    (h₁ : ∀ (y : ↥M₁) (τ : ↥N₂), cokerπ φ₃ (F (φ₁ y) τ) = 0)
+    (h₂ : ∀ (σ : ↥N₁) (y : ↥M₂), cokerπ φ₃ (F σ (φ₂ y)) = 0)
+    (σ : ↥N₁) (τ : ↥N₂) :
+    cokerDescBilinear φ₁ φ₂ φ₃ F hF h₁ h₂ (cokerπ φ₁ σ) (cokerπ φ₂ τ) =
+      cokerπ φ₃ (F σ τ) := rfl
+
+end DescBilinear
+
+end Coker
 
 end TopModuleCat
 
@@ -494,8 +648,7 @@ abbrev cupCochain (m n r : ℕ) (hr : r = m + n) :
   (invariantsFunctor k G).map (cupComplex ρ1 ρ2 ρ3 f m n r hr) ≫
     invariantsObjIHom ρ2 ρ3 n r
 
-set_option allowUnsafeReducibility true in
-attribute [local reducible] CategoryTheory.Functor.mapHomologicalComplex in
+
 variable {ρ1 ρ2 ρ3} in
 /-- The value of the cup product of two homogeneous cochains, as an element of the resolution. -/
 lemma cupCochain_coe (m n r : ℕ) (hr : r = m + n) (σ : (homogeneousCochains (.of ρ1)).X m)
@@ -516,8 +669,6 @@ lemma cupCochain_apply_zero (m n r : ℕ) (hr : r = m + n)
   map_zero (cupCochain f m n r hr σ : ↥((homogeneousCochains (.of ρ2)).X n) →L[k]
     ↥((homogeneousCochains (.of ρ3)).X r))
 
-set_option allowUnsafeReducibility true in
-attribute [local reducible] CategoryTheory.Functor.mapHomologicalComplex in
 lemma cup_d_comm (m n r : ℕ) (hr : r = m + n) (σ : (homogeneousCochains (.of ρ1)).X m)
     (τ : (homogeneousCochains (.of ρ2)).X n) :
     (homogeneousCochains (.of ρ3)).d r (r + 1) (cupCochain f m n r hr σ τ) =
@@ -530,14 +681,66 @@ lemma cup_d_comm (m n r : ℕ) (hr : r = m + n) (σ : (homogeneousCochains (.of 
     map_add, map_zsmul, resolutionXCast_trans, Submodule.coe_add, Submodule.coe_smul_of_tower,
     cupCochain_coe, cupCochain_coe, homogeneousCochains.d_apply, homogeneousCochains.d_apply]
 
-set_option allowUnsafeReducibility true in
-attribute [local reducible] CategoryTheory.Functor.mapHomologicalComplex
+variable {ρ1 ρ2 ρ3} in
+/-- `cupCochain` vanishes when its first argument is zero. -/
+@[simp]
+lemma cupCochain_zero_apply (m n r : ℕ) (hr : r = m + n)
+    (τ : (homogeneousCochains (.of ρ2)).X n) :
+    cupCochain f m n r hr 0 τ = 0 :=
+  congr($(map_zero (cupCochain f m n r hr).hom) τ)
+
+variable {ρ1 ρ2 ρ3} in
+/-- The cup product of two cocycles is a cocycle. -/
+lemma d_cupCochain_eq_zero (m n r : ℕ) (hr : r = m + n)
+    {σ : (homogeneousCochains (.of ρ1)).X m} {τ : (homogeneousCochains (.of ρ2)).X n}
+    (hσ : (homogeneousCochains (.of ρ1)).d m (m + 1) σ = 0)
+    (hτ : (homogeneousCochains (.of ρ2)).d n (n + 1) τ = 0) :
+    (homogeneousCochains (.of ρ3)).d r (r + 1) (cupCochain f m n r hr σ τ) = 0 := by
+  have h := cup_d_comm ρ1 ρ2 ρ3 f m n r hr σ τ
+  rw [hσ, hτ, cupCochain_zero_apply, cupCochain_apply_zero] at h
+  refine h.trans ?_
+  have h0 : (0 : ↥((homogeneousCochains (.of ρ3)).X (r + 1))) +
+      (-1 : ℤ) ^ m • (0 : ↥((homogeneousCochains (.of ρ3)).X (r + 1))) = 0 := by simp
+  exact h0
+
+variable {ρ1 ρ2 ρ3} in
+/-- For a fixed cocycle `σ`, cupping with `σ` restricts to a continuous linear map between the
+kernels of the differentials on homogeneous cochains. -/
+noncomputable def cupKerCLM (m n r : ℕ) (hr : r = m + n)
+    (σ : ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ1)).d m (m + 1)))) :
+    ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ2)).d n (n + 1))) →L[k]
+      ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ3)).d r (r + 1))) :=
+  (cupCochain f m n r hr σ.1 : ↥((homogeneousCochains (.of ρ2)).X n) →L[k]
+      ↥((homogeneousCochains (.of ρ3)).X r)).restrict
+    fun _ hτ ↦ LinearMap.mem_ker.2 (d_cupCochain_eq_zero f m n r hr
+      (LinearMap.mem_ker.mp σ.2) (LinearMap.mem_ker.mp hτ))
+
+variable {ρ1 ρ2 ρ3} in
+@[simp]
+lemma cupKerCLM_apply_coe (m n r : ℕ) (hr : r = m + n)
+    (σ : ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ1)).d m (m + 1))))
+    (τ : ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ2)).d n (n + 1)))) :
+    (cupKerCLM f m n r hr σ τ).1 = cupCochain f m n r hr σ.1 τ.1 := rfl
 
 /-- Applying two consecutive differentials of the homogeneous cochain complex gives zero. -/
 lemma _root_.TopRep.homogeneousCochains.d_comp_d_apply (X : TopRep k G) (i j l : ℕ)
     (σ : (homogeneousCochains X).X i) :
     (homogeneousCochains X).d j l ((homogeneousCochains X).d i j σ) = 0 := by
   simpa using congr($((homogeneousCochains X).d_comp_d i j l) σ)
+
+/-- The coboundary map into the kernel model: the differential corestricted to the cocycles of
+the next degree. In degree `0` the junk value `d 0 0 = 0` makes its range `⊥`, matching the
+convention of `HomologicalComplex.homologyIsCokernel`. -/
+noncomputable def bdryKer (X : TopRep k G) (j : ℕ) :
+    (homogeneousCochains X).X (j - 1) ⟶
+      TopModuleCat.ker ((homogeneousCochains X).d j (j + 1)) :=
+  TopModuleCat.ofHom
+    (((homogeneousCochains X).d (j - 1) j).hom.codRestrict _
+      fun y ↦ LinearMap.mem_ker.2 (homogeneousCochains.d_comp_d_apply X (j - 1) j (j + 1) y))
+
+@[simp]
+lemma bdryKer_apply_coe (X : TopRep k G) (j : ℕ) (y : ↥((homogeneousCochains X).X (j - 1))) :
+    (bdryKer X j y).1 = (homogeneousCochains X).d (j - 1) j y := rfl
 
 variable {ρ1 ρ2 ρ3} in
 /-- The cup product with a doubly-applied differential vanishes. -/
@@ -565,6 +768,217 @@ lemma d_cup_d (m n r : ℕ) (hr : r = m + n) (σ : (homogeneousCochains (.of ρ1
     ((homogeneousCochains (.of ρ2)).d n (n + 1) τ)
   rw [cupCochain_d_comp_d] at h
   simpa only [smul_zero, add_zero] using h.symm
+
+variable {ρ1 ρ2 ρ3} in
+/-- Cupping a coboundary with a cocycle gives a coboundary. -/
+lemma d_cupCochain_of_d_eq_zero (m n r : ℕ) (hr : r = m + n)
+    (σ : (homogeneousCochains (.of ρ1)).X m) {τ : (homogeneousCochains (.of ρ2)).X n}
+    (hτ : (homogeneousCochains (.of ρ2)).d n (n + 1) τ = 0) :
+    cupCochain f (m + 1) n (r + 1) (by omega) ((homogeneousCochains (.of ρ1)).d m (m + 1) σ) τ =
+      (homogeneousCochains (.of ρ3)).d r (r + 1) (cupCochain f m n r hr σ τ) := by
+  have h := cup_d_comm ρ1 ρ2 ρ3 f m n r hr σ τ
+  rw [hτ, cupCochain_apply_zero] at h
+  have h0 : ∀ x : ↥((homogeneousCochains (.of ρ3)).X (r + 1)),
+      x = x + (-1 : ℤ) ^ m • (0 : ↥((homogeneousCochains (.of ρ3)).X (r + 1))) := by simp
+  exact (h0 _).trans h.symm
+
+variable {ρ1 ρ2 ρ3} in
+/-- Cupping a cocycle with a coboundary gives a coboundary, up to the sign `(-1) ^ m`. -/
+lemma cupCochain_d_of_d_eq_zero (m n r : ℕ) (hr : r = m + n)
+    {σ : (homogeneousCochains (.of ρ1)).X m} (τ : (homogeneousCochains (.of ρ2)).X n)
+    (hσ : (homogeneousCochains (.of ρ1)).d m (m + 1) σ = 0) :
+    cupCochain f m (n + 1) (r + 1) (by omega) σ ((homogeneousCochains (.of ρ2)).d n (n + 1) τ) =
+      (-1 : ℤ) ^ m • (homogeneousCochains (.of ρ3)).d r (r + 1) (cupCochain f m n r hr σ τ) := by
+  have h := cup_d_comm ρ1 ρ2 ρ3 f m n r hr σ τ
+  rw [hσ, cupCochain_zero_apply] at h
+  rw [h]
+  have h0 : ∀ x : ↥((homogeneousCochains (.of ρ3)).X (r + 1)),
+      (-1 : ℤ) ^ m • ((0 : ↥((homogeneousCochains (.of ρ3)).X (r + 1))) + (-1 : ℤ) ^ m • x) =
+        x := by
+    intro x
+    rw [zero_add, smul_smul, ← pow_add, Even.neg_one_pow ⟨m, rfl⟩, one_smul]
+  exact (h0 _).symm
+
+variable {ρ1 ρ2 ρ3} in
+/-- The cup product pairing on the kernels of the differentials is jointly continuous. -/
+lemma continuous_cupKerCLM_uncurry (m n r : ℕ) (hr : r = m + n) :
+    Continuous fun p : ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ1)).d m (m + 1))) ×
+        ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ2)).d n (n + 1))) ↦
+      cupKerCLM f m n r hr p.1 p.2 := by
+  refine continuous_induced_rng.2 (continuous_induced_rng.2 ?_)
+  change Continuous fun p : ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ1)).d m (m + 1))) ×
+      ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ2)).d n (n + 1))) ↦
+    (cupCochain f m n r hr p.1.1 p.2.1 : ↥((TopRep.of ρ3).resolution'.X r))
+  have h2 : (fun p : ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ1)).d m (m + 1))) ×
+      ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ2)).d n (n + 1))) ↦
+      (cupCochain f m n r hr p.1.1 p.2.1 : ↥((TopRep.of ρ3).resolution'.X r))) =
+      fun p ↦ resolutionXCast (.of ρ3) (by omega : n + 1 + m = r + 1)
+        ((cupPair f n m).1 p.1.1.1 p.2.1.1) := by
+    funext p
+    exact cupCochain_coe f m n r hr p.1.1 p.2.1
+  rw [h2]
+  exact (resolutionXCast (.of ρ3) (by omega : n + 1 + m = r + 1)).continuous.comp
+    ((cupPair f n m).2.comp
+      (((continuous_subtype_val.comp continuous_subtype_val).comp continuous_fst).prodMk
+        ((continuous_subtype_val.comp continuous_subtype_val).comp continuous_snd)))
+
+variable {ρ1 ρ2 ρ3} in
+/-- The cup product bundled as a morphism from the kernel of the differential into the
+internal hom of the kernel models. -/
+noncomputable def cupKerHom (f : ρ1 →ⁱL ρ2.linHom ρ3) (m n r : ℕ) (hr : r = m + n) :
+    TopModuleCat.ker ((homogeneousCochains (.of ρ1)).d m (m + 1)) ⟶
+      TopModuleCat.linHom (TopModuleCat.ker ((homogeneousCochains (.of ρ2)).d n (n + 1)))
+        (TopModuleCat.ker ((homogeneousCochains (.of ρ3)).d r (r + 1))) :=
+  TopModuleCat.homOfBilinear (cupKerCLM f m n r hr)
+    (fun σ1 σ2 τ ↦ Subtype.ext (congr($(map_add (cupCochain f m n r hr).hom σ1.1 σ2.1) τ.1)))
+    (fun c σ τ ↦ Subtype.ext (congr($(map_smul (cupCochain f m n r hr).hom c σ.1) τ.1)))
+    (continuous_cupKerCLM_uncurry f m n r hr)
+
+open Limits
+
+variable {ι : Type w} {c : ComplexShape ι} (K : HomologicalComplex (TopModuleCat.{v} k) c)
+
+/-- The cycles of a complex of topological modules, identified with the kernel of the
+differential carrying the subspace topology. -/
+noncomputable def _root_.HomologicalComplex.cyclesIsoKer (i j : ι) (hij : c.next i = j) :
+    K.cycles i ≅ TopModuleCat.ker (K.d i j) :=
+  KernelFork.mapIsoOfIsLimit (K.cyclesIsKernel i j hij) (TopModuleCat.isLimitKer _) (Iso.refl _)
+
+@[reassoc (attr := simp)]
+lemma _root_.HomologicalComplex.cyclesIsoKer_hom_kerι (i j : ι) (hij : c.next i = j) :
+    (K.cyclesIsoKer i j hij).hom ≫ TopModuleCat.kerι (K.d i j) = K.iCycles i := by
+  refine (KernelFork.mapOfIsLimit_ι _ (TopModuleCat.isLimitKer (K.d i j)) (𝟙 _)).trans ?_
+  rfl
+
+@[simp]
+lemma _root_.HomologicalComplex.cyclesIsoKer_hom_apply_coe (i j : ι) (hij : c.next i = j)
+    (z : ↥(K.cycles i)) :
+    ((K.cyclesIsoKer i j hij).hom z).1 = K.iCycles i z :=
+  congr($(K.cyclesIsoKer_hom_kerι i j hij) z)
+
+/-- The homology of a complex of topological modules, identified with the quotient of the
+cycles by the boundaries, carrying the quotient topology. -/
+noncomputable def _root_.HomologicalComplex.homologyIsoCoker (i j : ι) (hij : c.prev j = i) :
+    K.homology j ≅ TopModuleCat.coker (K.toCycles i j) :=
+  CokernelCofork.mapIsoOfIsColimit (K.homologyIsCokernel i j hij)
+    (TopModuleCat.isColimitCoker _) (Iso.refl _)
+
+/-- The cup product of two cocycles, as a cocycle: by the Leibniz rule `cup_d_comm`, the
+differential of `σ ∪ τ` vanishes when `d σ = 0` and `d τ = 0`. -/
+noncomputable abbrev cupCocyclesAux (f : ρ1 →ⁱL ρ2.linHom ρ3) (m n r : ℕ) (hr : r = m + n)
+    (σ : (homogeneousCochains (.of ρ1)).cycles m)
+    (τ : (homogeneousCochains (.of ρ2)).cycles n) :
+    (homogeneousCochains (.of ρ3)).cycles r :=
+  letI σ' := ((homogeneousCochains (.of ρ1)).cyclesIsoKer m (m + 1) (by simp)).hom.hom σ
+  letI τ' := ((homogeneousCochains (.of ρ2)).cyclesIsoKer n (n + 1) (by simp)).hom.hom τ
+  ((homogeneousCochains (.of ρ3)).cyclesIsoKer r (r + 1) (by simp)).inv.hom
+    ⟨cupCochain f m n r hr σ' τ',
+      LinearMap.mem_ker.2 (d_cupCochain_eq_zero f m n r hr
+        (LinearMap.mem_ker.mp σ'.2) (LinearMap.mem_ker.mp τ'.2))⟩
+
+noncomputable def cupCocycles (f : ρ1 →ⁱL ρ2.linHom ρ3) (m n r : ℕ) (hr : r = m + n) :
+    (homogeneousCochains (.of ρ1)).cycles m ⟶
+      TopModuleCat.linHom ((homogeneousCochains (.of ρ2)).cycles n)
+        ((homogeneousCochains (.of ρ3)).cycles r) :=
+  ((homogeneousCochains (.of ρ1)).cyclesIsoKer m (m + 1) (by simp)).hom ≫
+    cupKerHom f m n r hr ≫
+      TopModuleCat.linHomMap
+        ((homogeneousCochains (.of ρ2)).cyclesIsoKer n (n + 1) (by simp)).hom
+        ((homogeneousCochains (.of ρ3)).cyclesIsoKer r (r + 1) (by simp)).inv
+
+variable {ρ1 ρ2 ρ3} in
+@[simp]
+lemma cupCocycles_apply (f : ρ1 →ⁱL ρ2.linHom ρ3) (m n r : ℕ) (hr : r = m + n)
+    (σ : (homogeneousCochains (.of ρ1)).cycles m)
+    (τ : (homogeneousCochains (.of ρ2)).cycles n) :
+    cupCocycles ρ1 ρ2 ρ3 f m n r hr σ τ = cupCocyclesAux ρ1 ρ2 ρ3 f m n r hr σ τ := rfl
+
+lemma up_nat_prev (j : ℕ) : (ComplexShape.up ℕ).prev j = j - 1 := by
+  cases j with
+  | zero => simp
+  | succ i => simp
+
+/-- Under the identification of the cycles with the kernel model, `toCycles` becomes the
+corestricted differential `bdryKer`. -/
+lemma toCycles_comp_cyclesIsoKer_hom (X : TopRep k G) (j : ℕ) :
+    (homogeneousCochains X).toCycles (j - 1) j ≫
+      ((homogeneousCochains X).cyclesIsoKer j (j + 1) (by simp)).hom = bdryKer X j := by
+  refine ConcreteCategory.hom_ext _ _ fun y ↦ Subtype.ext ?_
+  rw [ConcreteCategory.comp_apply, (homogeneousCochains X).cyclesIsoKer_hom_apply_coe,
+    bdryKer_apply_coe]
+  exact congr($((homogeneousCochains X).toCycles_i (i := j - 1) (j := j)) y)
+
+/-- Continuous cohomology identified with the quotient of the kernel model of the cocycles by
+the coboundaries, carrying the quotient topology. -/
+noncomputable def cohomologyIsoQuot (X : TopRep k G) (j : ℕ) :
+    continuousCohomology j X ≅ TopModuleCat.coker (bdryKer X j) :=
+  (homogeneousCochains X).homologyIsoCoker (j - 1) j (up_nat_prev j) ≪≫
+    TopModuleCat.cokerCongr ((homogeneousCochains X).cyclesIsoKer j (j + 1) (by simp))
+      (toCycles_comp_cyclesIsoKer_hom X j)
+
+variable {ρ1 ρ2 ρ3} in
+/-- Cupping a coboundary with a cocycle dies in the quotient by the coboundaries. -/
+lemma cokerπ_cupKerCLM_bdryKer_left (m n r : ℕ) (hr : r = m + n)
+    (y : ↥((homogeneousCochains (.of ρ1)).X (m - 1)))
+    (τ : ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ2)).d n (n + 1)))) :
+    TopModuleCat.cokerπ (bdryKer (.of ρ3) r)
+      (cupKerCLM f m n r hr (bdryKer (.of ρ1) m y) τ) = 0 := by
+  cases m with
+  | zero =>
+    have h0 : bdryKer (TopRep.of ρ1) 0 y = 0 := Subtype.ext (by
+      rw [bdryKer_apply_coe, (homogeneousCochains (TopRep.of ρ1)).shape _ _ (by simp)]
+      rfl)
+    have h1 : cupKerCLM f 0 n r hr (bdryKer (TopRep.of ρ1) 0 y) τ = 0 := by
+      rw [h0]
+      exact Subtype.ext (by
+        rw [cupKerCLM_apply_coe]
+        simpa using cupCochain_zero_apply f 0 n r hr τ.1)
+    rw [h1]
+    exact (TopModuleCat.cokerπ (bdryKer (TopRep.of ρ3) r)).hom.map_zero
+  | succ i =>
+    obtain rfl : r = i + n + 1 := by omega
+    rw [TopModuleCat.cokerπ_eq_zero_iff]
+    exact ⟨cupCochain f i n (i + n) rfl y τ.1, Subtype.ext
+      (d_cupCochain_of_d_eq_zero f i n (i + n) rfl y (LinearMap.mem_ker.mp τ.2)).symm⟩
+
+variable {ρ1 ρ2 ρ3} in
+/-- Cupping a cocycle with a coboundary dies in the quotient by the coboundaries. -/
+lemma cokerπ_cupKerCLM_bdryKer_right (m n r : ℕ) (hr : r = m + n)
+    (σ : ↥(TopModuleCat.ker ((homogeneousCochains (.of ρ1)).d m (m + 1))))
+    (y : ↥((homogeneousCochains (.of ρ2)).X (n - 1))) :
+    TopModuleCat.cokerπ (bdryKer (.of ρ3) r)
+      (cupKerCLM f m n r hr σ (bdryKer (.of ρ2) n y)) = 0 := by
+  cases n with
+  | zero =>
+    have h0 : bdryKer (TopRep.of ρ2) 0 y = 0 := Subtype.ext (by
+      rw [bdryKer_apply_coe, (homogeneousCochains (TopRep.of ρ2)).shape _ _ (by simp)]
+      rfl)
+    rw [h0, (cupKerCLM f m 0 r hr σ).map_zero]
+    exact (TopModuleCat.cokerπ (bdryKer (TopRep.of ρ3) r)).hom.map_zero
+  | succ i =>
+    obtain rfl : r = m + i + 1 := by omega
+    rw [TopModuleCat.cokerπ_eq_zero_iff]
+    refine ⟨(-1 : ℤ) ^ m • cupCochain f m i (m + i) rfl σ.1 y, Subtype.ext ?_⟩
+    change (homogeneousCochains (TopRep.of ρ3)).d (m + i) (m + i + 1)
+        ((-1 : ℤ) ^ m • cupCochain f m i (m + i) rfl σ.1 y) =
+      cupCochain f m (i + 1) (m + i + 1) (by omega) σ.1
+        ((homogeneousCochains (TopRep.of ρ2)).d i (i + 1) y)
+    rw [map_zsmul]
+    exact (cupCochain_d_of_d_eq_zero f m i (m + i) rfl y (LinearMap.mem_ker.mp σ.2)).symm
+
+/-- The cup product on continuous group cohomology induced by an intertwining map
+`f : ρ1 →ⁱL linHom ρ2 ρ3`: descend the kernel-model cup product `cupKerHom` to the quotients
+by the coboundaries on all three slots, and transport along `cohomologyIsoQuot`. -/
+noncomputable def cup (f : ρ1 →ⁱL ρ2.linHom ρ3) (m n r : ℕ) (hr : r = m + n) :
+    (continuousCohomology m (of ρ1)) ⟶
+      TopModuleCat.linHom ((continuousCohomology n (of ρ2)))
+        ((continuousCohomology r (of ρ3))) :=
+  (cohomologyIsoQuot (of ρ1) m).hom ≫
+    TopModuleCat.cokerDescBilinear (bdryKer (of ρ1) m) (bdryKer (of ρ2) n) (bdryKer (of ρ3) r)
+      (cupKerHom f m n r hr) (continuous_cupKerCLM_uncurry f m n r hr)
+      (fun y τ ↦ cokerπ_cupKerCLM_bdryKer_left f m n r hr y τ)
+      (fun σ y ↦ cokerπ_cupKerCLM_bdryKer_right f m n r hr σ y) ≫
+    TopModuleCat.linHomMap (cohomologyIsoQuot (of ρ2) n).hom (cohomologyIsoQuot (of ρ3) r).inv
 
 end Cup
 
