@@ -88,8 +88,8 @@ variable {π_G : TopRep R G} {π_H : TopRep R H}
 namespace TopRep
 
 def relInvariantsFunctor : TopRep R G ⥤ TopRep R (G ⧸ N) where
-  obj π_G       := TopRep.of (π_G.ρ.relInvariantsInfl N)
-  map f         := TopRep.ofHom (ContRepresentation.relInvariantsIntertwining' _ _ N f.hom)
+  obj rep       := TopRep.of (rep.ρ.relInvariantsInfl N)
+  map f         := TopRep.ofHom (relInvariantsIntertwining' _ _ N f.hom)
 
 variable (R) in
 @[simps] def inflι : (relInvariantsFunctor N ⋙ resFunctor (QuotientGroup.mk' N)) ⟶ 𝟭 (TopRep R G)
@@ -120,10 +120,8 @@ namespace ContinuousCohomology
 abbrev inflApp (n : ℕ) (π : TopRep R G) :
     (relInvariantsFunctor N ⋙ Functor R (G ⧸ N) n).obj π
     ⟶ (Functor R G n).obj ((𝟭 _).obj π) :=
-  (resNatTrans R (QuotientGroup.mk'' N) n).app
-  ((relInvariantsFunctor N).obj π)
-  ≫ (Functor R G n).map
-  ((inflι R N).app π)
+  (resNatTrans R (QuotientGroup.mk'' N) n).app ((relInvariantsFunctor N).obj π)
+  ≫ (Functor R G n).map ((inflι R N).app π)
 
 /-- The components `inflApp N n` are natural in the representation: they intertwine the
 functorial maps on continuous cohomology. -/
