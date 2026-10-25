@@ -13,6 +13,7 @@ public import Mathlib.Topology.Algebra.Algebra.Equiv
 public import Mathlib.Topology.Algebra.InfiniteSum.Module
 public import Mathlib.Topology.Algebra.Module.ContinuousLinearMap.RestrictScalars
 public import Mathlib.Topology.Instances.RealVectorSpace
+public import Mathlib.Analysis.Normed.Module.RestrictScalars
 
 /-!
 
